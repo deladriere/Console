@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Vintage CRT Terminal (p5.js + Web Serial)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.jsdelivr.net/npm/p5/lib/p5.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            height: 100%;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        #ui {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        button {
+            background: #092;
+            color: #bdfccb;
+            border: 1px solid #1a4;
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        .hint {
+            color: #6fef9a;
+            opacity: 0.8;
+            font-size: 12px;
+            text-shadow: 0 0 6px #0f5;
+        }
+
+        #bigNum {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #03FF00;
+            font-family: 'Press Start 2P', monospace;
+            text-shadow: 0 0 12px rgba(3, 255, 0, 0.8), 0 0 32px rgba(3, 255, 0, 0.4);
+            font-weight: 700;
+            letter-spacing: 2px;
+            pointer-events: none;
+            user-select: none;
+            white-space: nowrap;
+            z-index: 5;
+            font-size: min(40vh, 40vw);
+            line-height: 1;
+        }
+
+        /* Row effect: 1..8 outlines, active full color */
+        #rowNums {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90vw;
+            display: none;
+            /* enabled when effect = row */
+            justify-content: space-between;
+            align-items: center;
+            z-index: 6;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        #rowNums .num {
+            font-family: 'Press Start 2P', monospace;
+            font-size: min(12vh, 12vw);
+            line-height: 1;
+            color: transparent;
+            -webkit-text-stroke: 2px #03FF00;
+            text-shadow: 0 0 6px rgba(3, 255, 0, 0.25);
+            opacity: 0.5;
+        }
+
+        #rowNums .num.active {
+            color: #03FF00;
+            -webkit-text-stroke: 0;
+            text-shadow: 0 0 16px rgba(3, 255, 0, 0.9), 0 0 40px rgba(3, 255, 0, 0.5), 0 0 60px rgba(3, 255, 0, 0.3);
+            opacity: 1;
+            animation: rowZoomPop 0.12s cubic-bezier(0.2, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes rowZoomPop {
+            0% {
+                transform: scale(5);
+                filter: brightness(1.6);
+            }
+
+            100% {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+        }
+
+        @keyframes pulseGlow {
+            0% {
+                text-shadow: 0 0 10px rgba(3, 255, 0, 0.6), 0 0 24px rgba(3, 255, 0, 0.3);
+                filter: brightness(0.95);
+            }
+
+            50% {
+                text-shadow: 0 0 18px rgba(3, 255, 0, 0.95), 0 0 44px rgba(3, 255, 0, 0.55);
+                filter: brightness(1.12);
+            }
+
+            100% {
+                text-shadow: 0 0 10px rgba(3, 255, 0, 0.6), 0 0 24px rgba(3, 255, 0, 0.3);
+                filter: brightness(0.95);
+            }
+        }
+
+        .pulseOnce {
+            animation: pulseGlow 0.3s ease-in-out 1;
+            will-change: filter, text-shadow;
+        }
+
+        @keyframes zoomInNum {
+            0% {
+                transform: translate(-50%, -50%) scale(5);
+                filter: brightness(1.15);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                filter: brightness(1);
+            }
+        }
+
+        .zoomOnce {
+            animation: zoomInNum 0.28s ease-out 1;
+            will-change: transform, filter;
+        }
+
+        @keyframes zoomToRow {
+            0% {
+                transform: translate(-50%, -50%) scale(5);
+                filter: brightness(1.15);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                filter: brightness(1);
+            }
+        }
+
+        .zoomRowOnce {
+            animation: zoomToRow 0.25s ease-out 1;
+            will-change: transform, filter;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="ui">
+        <button id="connect">Connect Serial</button>
+        <label class="hint">Effect:
+            <select id="effect">
+                <option value="pulse" selected>Pulse</option>
+                <option value="zoom">Zoom-in</option>
+                <option value="row">Row</option>
+            </select>
+        </label>
+        <select id="baud">
+            <option value="9600" selected>9600</option>
+            <option value="115200">115200</option>
+            <option value="57600">57600</option>
+            <option value="38400">38400</option>
+            <option value="19200">19200</option>
+        </select>
+        <label class="hint"><input type="checkbox" id="autoReset" checked> Auto-reset on connect</label>
+        <button id="clear">Clear</button>
+        <span id="status" class="hint">Status: Not connected</span>
+        <span class="hint">Chrome/Edge only · served via https/localhost</span>
+    </div>
+
+    <div id="bigNum"></div>
+    <div id="rowNums">
+        <span class="num">1</span>
+        <span class="num">2</span>
+        <span class="num">3</span>
+        <span class="num">4</span>
+        <span class="num">5</span>
+        <span class="num">6</span>
+        <span class="num">7</span>
+        <span class="num">8</span>
+    </div>
+
+    <script>
+        // -------- Serial state
+        let port, reader, inputDone;
+        let bytesReceived = 0;
+
+        // -------- Terminal state
+        const cols = 80;          // characters per line (wrap width)
+        const rows = 30;          // visible lines
+        const maxBuffer = 2000;   // keep a history; old lines dropped
+        let buffer = [];          // array of strings (each is a line)
+        let currentLine = '';     // accumulating characters until newline
+        let cursorVisible = true;
+        let lastCursorToggle = 0;
+        const cursorPeriod = 550; // ms
+        let bigText = '';
+        const bigEl = document.getElementById('bigNum');
+        const rowEl = document.getElementById('rowNums');
+        function setBigText(txt) {
+            bigText = String(txt);
+            const num = parseFloat(bigText);
+            const isRowMode = typeof currentEffect !== 'undefined' && currentEffect === 'row';
+
+            // In row mode: hide bigNum, show row with zoom-pop on active
+            if (isRowMode) {
+                if (bigEl) bigEl.style.display = 'none';
+                if (rowEl && !isNaN(num)) {
+                    const n = Math.round(num);
+                    const children = rowEl.querySelectorAll('.num');
+                    children.forEach((el, idx) => {
+                        const isActive = (idx + 1) === n;
+                        if (isActive) {
+                            // Always restart animation (even if same number repeats)
+                            el.classList.remove('active');
+                            void el.offsetWidth;
+                            el.classList.add('active');
+                        } else {
+                            el.classList.remove('active');
+                        }
+                    });
+                }
+                console.log('ROW mode - active:', Math.round(num));
+                return;
+            }
+
+            // Non-row modes: show bigNum with effects
+            if (bigEl) {
+                bigEl.style.display = '';
+                bigEl.textContent = bigText;
+                bigEl.classList.remove('pulseOnce', 'zoomOnce');
+                void bigEl.offsetWidth; // Force reflow
+                if (currentEffect === 'zoom') {
+                    bigEl.classList.add('zoomOnce');
+                } else {
+                    bigEl.classList.add('pulseOnce');
+                }
+            }
+            console.log('BIG number set to:', bigText);
+
+            // Map numeric value 0..8 to horizontal position
+            if (!isNaN(num)) {
+                const t = Math.min(1, Math.max(0, num / 8));
+                const rect = bigEl ? bigEl.getBoundingClientRect() : { width: 0 };
+                const halfPercent = Math.min(45, (rect.width && window.innerWidth ? (rect.width / window.innerWidth) * 50 : 0));
+                const minCenter = Math.max(1, halfPercent);
+                const maxCenter = Math.max(minCenter, 100 - halfPercent - 2);
+                const shift = 4;
+                const minAdj = Math.max(0, minCenter - shift);
+                const maxAdj = Math.max(minAdj, maxCenter - shift);
+                const xPercent = minAdj + (maxAdj - minAdj) * t;
+                if (bigEl) bigEl.style.left = xPercent + '%';
+            }
+        }
+
+        // -------- Typographic/visual tuning
+        let charW = 10;           // will be measured in setup
+        let charH = 20;
+        let margin = 24;
+
+        // -------- Effects
+        // phosphor persistence via translucent full-screen overlay
+        const persistenceAlpha = 18;     // 0..255 (lower = longer trails)
+        const flickerAmount = 0.06;      // brightness jitter
+        const glowPasses = 2;            // how many glow passes
+        const scanlineAlpha = 16;        // strength of scanlines 0..255
+        const vignetteAlpha = 80;        // edge darkening
+        const bendAmount = 0.08;         // barrel distortion 0..0.3
+
+        // Optional local typing to test without Arduino
+        let localTypingEnabled = true;
+
+        const statusEl = document.getElementById('status');
+        const uiEl = document.getElementById('ui');
+        const autoResetEl = document.getElementById('autoReset');
+        const effectEl = document.getElementById('effect');
+        let currentEffect = 'pulse';
+        if (effectEl) {
+            currentEffect = effectEl.value;
+            if (rowEl) rowEl.style.display = currentEffect === 'row' ? 'flex' : 'none';
+            if (bigEl) bigEl.style.display = currentEffect === 'row' ? 'none' : '';
+            effectEl.addEventListener('change', () => {
+                currentEffect = effectEl.value;
+                if (rowEl) rowEl.style.display = currentEffect === 'row' ? 'flex' : 'none';
+                if (bigEl) bigEl.style.display = currentEffect === 'row' ? 'none' : '';
+                // Re-apply current value for new effect
+                if (bigText) setBigText(bigText);
+            });
+        }
+        document.getElementById('clear').addEventListener('click', () => {
+            buffer = [];
+            currentLine = '';
+            pushLine('— cleared —');
+        });
+
+        function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        document.getElementById('connect').addEventListener('click', async () => {
+            try {
+                if (!('serial' in navigator)) {
+                    const msg = 'Web Serial not supported in this browser.';
+                    statusEl.textContent = 'Status: ' + msg;
+                    pushLine(msg);
+                    return;
+                }
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                    const msg = 'This page must be served via https or localhost for Web Serial.';
+                    statusEl.textContent = 'Status: ' + msg;
+                    pushLine(msg);
+                }
+                const baud = parseInt(document.getElementById('baud').value, 10) || 9600;
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: baud });
+
+                pushLine('Serial connected at ' + baud + ' baud');
+                console.log('Serial opened at', baud, 'baud', port);
+                statusEl.textContent = 'Status: Connected @ ' + baud + ' baud · RX: 0 bytes';
+                bytesReceived = 0;
+                if (uiEl) uiEl.style.display = 'none';
+
+                if (autoResetEl.checked && port.setSignals) {
+                    try {
+                        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+                        await delay(100);
+                        await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+                        await delay(100);
+                        pushLine('Auto-reset toggled (DTR/RTS)');
+                    } catch (e) {
+                        console.warn('Failed to toggle DTR/RTS for reset:', e);
+                    }
+                }
+
+                const decoder = new TextDecoderStream();
+                inputDone = port.readable.pipeTo(decoder.writable);
+                reader = decoder.readable.getReader();
+
+                readLoop();
+            } catch (e) {
+                console.error('Serial error:', e);
+                pushLine('Serial error: ' + (e && e.message ? e.message : e));
+                statusEl.textContent = 'Status: Error — ' + (e && e.message ? e.message : e);
+            }
+        });
+
+        if ('serial' in navigator) {
+            navigator.serial.addEventListener('disconnect', () => {
+                pushLine('Serial disconnected');
+                statusEl.textContent = 'Status: Disconnected';
+                if (uiEl) uiEl.style.display = 'flex';
+            });
+        }
+
+        async function readLoop() {
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) { reader.releaseLock(); break; }
+                if (value) {
+                    console.log('RX chunk:', value);
+                    bytesReceived += value.length;
+                    statusEl.textContent = 'Status: Connected · RX: ' + bytesReceived + ' bytes';
+                    // Extract last numeric token from this chunk as fallback (even without newline)
+                    const numMatches = value.match(/[-+]?\d+(?:\.\d+)?/g);
+                    if (numMatches && numMatches.length) {
+                        setBigText(numMatches[numMatches.length - 1]);
+                    }
+                    // Split on CR/LF, keep partial at end in currentLine
+                    for (let i = 0; i < value.length; i++) {
+                        const ch = value[i];
+                        if (ch === '\n' || ch === '\r') {
+                            if (currentLine.length > 0) {
+                                pushLine(currentLine);
+                                currentLine = '';
+                            }
+                        } else {
+                            currentLine += ch;
+                        }
+                    }
+                }
+            }
+        }
+
+        function pushLine(line) {
+            const trimmed = (line || '').trim();
+            if (trimmed && /^[-+]?\d+(?:\.\d+)?$/.test(trimmed)) {
+                setBigText(trimmed);
+            }
+            // wrap to 'cols' with soft wrap
+            const wrapped = wrapText(line, cols);
+            for (const seg of wrapped) {
+                buffer.push(seg);
+                if (buffer.length > maxBuffer) buffer.shift();
+            }
+            // auto-scroll: keep last rows visible (handled in draw by slicing)
+        }
+
+        function wrapText(str, width) {
+            const out = [];
+            let s = str;
+            while (s.length > width) {
+                const cut = lastBreakPos(s, width);
+                out.push(s.slice(0, cut));
+                s = s.slice(cut);
+            }
+            out.push(s);
+            return out;
+        }
+
+        function lastBreakPos(s, width) {
+            const slice = s.slice(0, width + 1);
+            let pos = Math.max(slice.lastIndexOf(' '), slice.lastIndexOf('\t'));
+            if (pos <= 0) pos = width; // hard wrap
+            return pos;
+        }
+
+        // p5 setup
+        function setup() {
+            createCanvas(window.innerWidth, window.innerHeight);
+            textFont('Courier New, monospace');
+            textSize(20);
+            textLeading(22);
+            const bounds = textBounds('M');
+            charW = bounds.w || 10;
+            charH = 22;
+
+            // Boot screen line
+            pushLine('▲ CRT Terminal v1 — waiting for serial…');
+            if (!('serial' in navigator)) {
+                pushLine('Web Serial not supported. Use Chrome/Edge 89+');
+            } else if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                pushLine('Serve this page via https or localhost for Web Serial.');
+            }
+            pushLine('Tip: enable local typing with keyboard if Arduino not connected.');
+            pushLine('');
+        }
+
+        function windowResized() {
+            resizeCanvas(window.innerWidth, window.innerHeight);
+        }
+
+        // Helper to measure a character
+        function textBounds(s) {
+            const g = createGraphics(1, 1);
+            g.textSize(20);
+            g.textFont('Courier New, monospace');
+            return { w: g.textWidth(s) };
+        }
+
+        // Drawing with effects
+        function draw() {
+            // phosphor persistence: draw a translucent black rectangle
+            push();
+            noStroke();
+            fill(0, persistenceAlpha);
+            rect(0, 0, width, height);
+            pop();
+
+            // global flicker brightness
+            const flick = 1.0 + (random(-flickerAmount, flickerAmount));
+
+            // draw curved screen via manual mapping onto an offscreen buffer
+            const w = width, h = height;
+            const off = getOffscreen();
+            off.clear();
+
+            // text color base
+            const base = color(3, 255, 0); // #03FF00 green
+            // draw text with multiple glow passes
+            for (let g = glowPasses; g >= 0; g--) {
+                const blur = g * 1.5;
+                const alpha = g === 0 ? 255 : 45 / g;
+                off.push();
+                off.translate(margin, margin);
+                off.noStroke();
+                off.fill(red(base), green(base), blue(base), alpha);
+                off.textFont('Courier New, monospace');
+                off.textSize(20);
+                off.textLeading(22);
+
+                // visible window into buffer
+                const linesToShow = rows;
+                const start = Math.max(0, buffer.length - linesToShow);
+                const visible = buffer.slice(start);
+                for (let i = 0; i < visible.length; i++) {
+                    off.text(visible[i], 0, i * charH);
+                }
+
+                // current typing line + cursor
+                let cursor = '';
+                const now = millis();
+                if (now - lastCursorToggle > cursorPeriod) {
+                    cursorVisible = !cursorVisible;
+                    lastCursorToggle = now;
+                }
+                if (cursorVisible) cursor = '█';
+
+                off.text(currentLine + cursor, 0, visible.length * charH);
+
+                // BIG NUMBER OVERLAY (pixel font)
+                if (bigText) {
+                    // switch to pixel font for the big number
+                    off.textFont('Press Start 2P');
+                    // compute a font size to fit ~70% width, max 60% height
+                    const targetW = w * 0.7;
+                    const maxH = h * 0.6;
+                    let size = 20;
+                    off.textSize(size);
+                    let tw = off.textWidth(bigText);
+                    if (tw > 0) {
+                        size = Math.min((size * targetW) / tw, maxH);
+                        size = Math.max(size, 24);
+                    } else {
+                        size = 120;
+                    }
+                    off.textSize(size);
+                    off.textAlign(CENTER, CENTER);
+                    off.text(bigText, w / 2, h / 2);
+                    // restore terminal font
+                    off.textAlign(LEFT, BASELINE);
+                    off.textFont('Courier New, monospace');
+                    off.textSize(20);
+                }
+
+                // subtle blur pass by drawing shadow text offsets
+                if (g > 0) {
+                    off.fill(red(base), green(base), blue(base), alpha);
+                    off.text(visible.join('\n') + '\n' + currentLine + cursor, blur, blur);
+                }
+                off.pop();
+            }
+
+            // draw scanlines
+            off.push();
+            off.noStroke();
+            for (let y = 0; y < h; y += 2) {
+                off.fill(0, scanlineAlpha);
+                off.rect(0, y, w, 1);
+            }
+            off.pop();
+
+            // vignette
+            off.push();
+            off.drawingContext.globalCompositeOperation = 'multiply';
+            const grd = off.drawingContext.createRadialGradient(
+                w / 2, h / 2, min(w, h) * 0.2, w / 2, h / 2, max(w, h) * 0.7
+            );
+            grd.addColorStop(0, 'rgba(255,255,255,0)');
+            grd.addColorStop(1, `rgba(0,0,0,${vignetteAlpha / 255})`);
+            off.drawingContext.fillStyle = grd;
+            off.rect(0, 0, w, h);
+            off.pop();
+
+            // barrel distortion: map offscreen onto screen with a simple shaderless trick
+            // draw as rows with horizontal scaling based on y distance from center
+            const rowsSlices = 120;
+            const sliceH = h / rowsSlices;
+            for (let i = 0; i < rowsSlices; i++) {
+                const y = i * sliceH;
+                const v = (y + 0.5) / h - 0.5; // -0.5..0.5
+                const bend = 1 + bendAmount * (v * v) * 2.0; // widen at top/bottom
+                const slice = off.get(0, y, w, sliceH);
+                const sliceW = w * bend;
+                const dx = (w - sliceW) / 2;
+                image(slice, dx, y, sliceW, sliceH);
+            }
+
+            // slight global brightness adjustment (flicker)
+            push();
+            noStroke();
+            fill(0, (1 - flick) * 50);
+            rect(0, 0, w, h);
+            pop();
+        }
+
+        // offscreen buffer singleton
+        let _off;
+        function getOffscreen() {
+            if (!_off || _off.width !== width || _off.height !== height) {
+                _off = createGraphics(width, height);
+                _off.textFont('Courier New, monospace');
+                _off.textSize(20);
+                _off.textLeading(22);
+            }
+            return _off;
+        }
+
+        // local keyboard typing for testing
+        function keyTyped() {
+            if (!localTypingEnabled) return;
+            if (key === '\r' || key === '\n') {
+                pushLine(currentLine);
+                currentLine = '';
+            } else if (key.length === 1) {
+                currentLine += key;
+            }
+        }
+        function keyPressed() {
+            if (!localTypingEnabled) return;
+            if (keyCode === BACKSPACE) {
+                currentLine = currentLine.slice(0, -1);
+                // prevent browser navigation on backspace
+                return false;
+            }
+        }
+    </script>
+</body>
+
+</html>

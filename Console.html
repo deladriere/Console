@@ -1,0 +1,1215 @@
+<style>
+    html,
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: black;
+    }
+
+    /* Hydra canvas (dynamically created) */
+    canvas:not(#scopeCanvas):not(#barsCanvas) {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 0;
+    }
+
+    #barsCanvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 1;
+        pointer-events: none;
+        display: block;
+    }
+
+    #scopeCanvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 2;
+        pointer-events: none;
+        display: block;
+    }
+
+    .menu-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.9);
+        border-bottom: 1px solid #08f;
+        color: white;
+        font-family: monospace;
+        display: flex;
+        align-items: center;
+        padding: 0;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .menu-bar.hidden {
+        transform: translateY(-100%);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .menu-item {
+        position: relative;
+        padding: 12px 20px;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s;
+    }
+
+    .menu-item:hover {
+        background: rgba(8, 136, 255, 0.2);
+    }
+
+    .menu-item.active {
+        background: rgba(8, 136, 255, 0.3);
+    }
+
+    .submenu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background: rgba(0, 0, 0, 0.95);
+        border: 1px solid #08f;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        min-width: 200px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+        padding: 4px 0;
+        margin-top: 1px;
+    }
+
+    .menu-item.active .submenu,
+    .menu-item:hover .submenu {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    .submenu-item {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 10px 20px;
+        background: none;
+        color: white;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+        font-family: monospace;
+        font-size: 14px;
+        transition: background-color 0.15s;
+    }
+
+    .submenu-item:hover {
+        background: rgba(8, 136, 255, 0.3);
+    }
+
+    .submenu-item:active {
+        background: rgba(8, 136, 255, 0.5);
+    }
+
+    .submenu-item .checkmark {
+        width: 16px;
+        margin-right: 10px;
+        color: #08f;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .submenu-item.selected .checkmark {
+        opacity: 1;
+    }
+
+    .submenu-separator {
+        height: 1px;
+        background: #08f3;
+        margin: 4px 8px;
+    }
+
+    .submenu-label {
+        padding: 8px 20px 4px;
+        font-size: 11px;
+        color: #08f;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: bold;
+        pointer-events: none;
+    }
+
+    .submenu-item.disabled {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+
+    /* Toggle Switch */
+    .switch-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 10px 20px;
+        font-family: monospace;
+        font-size: 14px;
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.15s;
+    }
+
+    .switch-container:hover {
+        background: rgba(8, 136, 255, 0.3);
+    }
+
+    .switch {
+        position: relative;
+        width: 40px;
+        height: 20px;
+        background: #333;
+        border-radius: 10px;
+        transition: background 0.3s;
+        flex-shrink: 0;
+    }
+
+    .switch.active {
+        background: #08f;
+    }
+
+    .switch::after {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        background: white;
+        border-radius: 50%;
+        top: 2px;
+        left: 2px;
+        transition: transform 0.3s;
+    }
+
+    .switch.active::after {
+        transform: translateX(20px);
+    }
+
+    /* Big Number Display */
+    #bigNum {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #08f;
+        font-family: 'Press Start 2P', monospace;
+        text-shadow: 0 0 12px rgba(0, 136, 255, 0.8), 0 0 32px rgba(0, 136, 255, 0.4);
+        font-weight: 700;
+        letter-spacing: 2px;
+        pointer-events: none;
+        user-select: none;
+        white-space: nowrap;
+        z-index: 5;
+        font-size: min(40vh, 40vw);
+        line-height: 1;
+        display: none;
+    }
+
+    /* Row effect: 1..8 outlines, active full color */
+    #rowNums {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90vw;
+        display: none;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 6;
+        pointer-events: none;
+        user-select: none;
+    }
+
+    #rowNums .num {
+        font-family: 'Press Start 2P', monospace;
+        font-size: min(12vh, 12vw);
+        line-height: 1;
+        color: transparent;
+        -webkit-text-stroke: 2px #08f;
+        text-shadow: 0 0 6px rgba(0, 136, 255, 0.25);
+        opacity: 0.5;
+    }
+
+    #rowNums .num.active {
+        color: #08f;
+        -webkit-text-stroke: 0;
+        text-shadow: 0 0 16px rgba(0, 136, 255, 0.9), 0 0 40px rgba(0, 136, 255, 0.5), 0 0 60px rgba(0, 136, 255, 0.3);
+        opacity: 1;
+        animation: rowZoomPop 0.12s cubic-bezier(0.2, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes rowZoomPop {
+        0% {
+            transform: scale(5);
+            filter: brightness(1.6);
+        }
+
+        100% {
+            transform: scale(1);
+            filter: brightness(1);
+        }
+    }
+
+    @keyframes pulseGlow {
+        0% {
+            text-shadow: 0 0 10px rgba(0, 136, 255, 0.6), 0 0 24px rgba(0, 136, 255, 0.3);
+            filter: brightness(0.95);
+        }
+
+        50% {
+            text-shadow: 0 0 18px rgba(0, 136, 255, 0.95), 0 0 44px rgba(0, 136, 255, 0.55);
+            filter: brightness(1.12);
+        }
+
+        100% {
+            text-shadow: 0 0 10px rgba(0, 136, 255, 0.6), 0 0 24px rgba(0, 136, 255, 0.3);
+            filter: brightness(0.95);
+        }
+    }
+
+    .pulseOnce {
+        animation: pulseGlow 0.3s ease-in-out 1;
+        will-change: filter, text-shadow;
+    }
+
+    @keyframes zoomInNum {
+        0% {
+            transform: translate(-50%, -50%) scale(3);
+            filter: brightness(1.3);
+            opacity: 0.7;
+        }
+
+        100% {
+            transform: translate(-50%, -50%) scale(1);
+            filter: brightness(1);
+            opacity: 1;
+        }
+    }
+
+    .zoomOnce {
+        animation: zoomInNum 0.25s ease-out forwards;
+        will-change: transform, filter, opacity;
+    }
+</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<div class="menu-bar">
+    <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
+        <span>Serial <span id="serialStatus" style="color:#f44;font-size:10px;">●</span></span>
+        <div class="submenu">
+            <button class="submenu-item" onclick="connectSerial(event)">
+                <span class="checkmark">✓</span>
+                <span>Connect Port</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
+        <span>MIDI Settings</span>
+        <div class="submenu">
+            <button class="submenu-item" onclick="selectItem(this, 'midi')">
+                <span class="checkmark">✓</span>
+                <span>Connect MIDI</span>
+            </button>
+            <button class="submenu-item" onclick="selectItem(this, 'channel')">
+                <span class="checkmark">✓</span>
+                <span>Channel 1</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
+        <span>Hydra Background</span>
+        <div class="submenu" data-group="background">
+            <div class="switch-container" onclick="toggleHydra()">
+                <span>Enable Hydra</span>
+                <div id="hydraSwitch" class="switch"></div>
+            </div>
+            <div class="submenu-separator"></div>
+            <button class="submenu-item" onclick="setBackground('pattern1', this)">
+                <span class="checkmark">✓</span>
+                <span>Pattern 1</span>
+            </button>
+            <button class="submenu-item" onclick="setBackground('pattern2', this)">
+                <span class="checkmark">✓</span>
+                <span>Pattern 2</span>
+            </button>
+            <button class="submenu-item" onclick="setBackground('pattern3', this)">
+                <span class="checkmark">✓</span>
+                <span>Pattern 3</span>
+            </button>
+            <button class="submenu-item" onclick="setBackground('pattern4', this)">
+                <span class="checkmark">✓</span>
+                <span>Pattern 4</span>
+            </button>
+            <button class="submenu-item" onclick="setBackground('pattern5', this)">
+                <span class="checkmark">✓</span>
+                <span>Pattern 5</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
+        <span>Scope</span>
+        <div class="submenu" data-group="scope">
+            <div class="switch-container" onclick="toggleScope()">
+                <span>Enable Scope</span>
+                <div id="scopeSwitch" class="switch"></div>
+            </div>
+            <div class="submenu-separator"></div>
+            <div class="submenu-label">Mode</div>
+            <button class="submenu-item selected" onclick="setScopeMode('green', this)">
+                <span class="checkmark">✓</span>
+                <span>Green</span>
+            </button>
+            <button class="submenu-item" onclick="setScopeMode('white', this)">
+                <span class="checkmark">✓</span>
+                <span>White</span>
+            </button>
+            <button class="submenu-item" onclick="setScopeMode('rgb', this)">
+                <span class="checkmark">✓</span>
+                <span>RGB</span>
+            </button>
+            <button class="submenu-item" onclick="setScopeMode('bars', this)">
+                <span class="checkmark">✓</span>
+                <span>Frequency Bars</span>
+            </button>
+            <div class="submenu-separator"></div>
+            <div class="submenu-label">Gain <span id="gainValue">1.0x</span></div>
+            <div style="padding: 8px 20px;">
+                <input type="range" id="gainSlider" min="0.1" max="5" step="0.1" value="1"
+                    style="width: 100%; cursor: pointer;" oninput="setGain(this.value)">
+            </div>
+        </div>
+    </div>
+
+    <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
+        <span>Text Input</span>
+        <div class="submenu" data-group="textInput">
+            <div class="switch-container" onclick="toggleTextDisplay()">
+                <span>Enable Display</span>
+                <div id="textDisplaySwitch" class="switch"></div>
+            </div>
+            <div class="submenu-separator"></div>
+            <div class="submenu-label">Numbers</div>
+            <button class="submenu-item selected" onclick="setTextInputMode('pulse', this)">
+                <span class="checkmark">✓</span>
+                <span>Pulse</span>
+            </button>
+            <button class="submenu-item" onclick="setTextInputMode('zoom', this)">
+                <span class="checkmark">✓</span>
+                <span>Zoom-in</span>
+            </button>
+            <button class="submenu-item" onclick="setTextInputMode('row', this)">
+                <span class="checkmark">✓</span>
+                <span>Row 1-8</span>
+            </button>
+            <div class="submenu-separator"></div>
+            <div class="submenu-label">String</div>
+            <button class="submenu-item disabled">
+                <span class="checkmark">✓</span>
+                <span>Coming soon...</span>
+            </button>
+            <div class="submenu-separator"></div>
+            <div class="submenu-label">Word</div>
+            <button class="submenu-item disabled">
+                <span class="checkmark">✓</span>
+                <span>Coming soon...</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
+        <span>Text Effect</span>
+        <div class="submenu" data-group="textEffect">
+            <button class="submenu-item" onclick="setTextEffect('glitch', this)">
+                <span class="checkmark">✓</span>
+                <span>Glitch</span>
+            </button>
+            <button class="submenu-item" onclick="setTextEffect('wave', this)">
+                <span class="checkmark">✓</span>
+                <span>Wave</span>
+            </button>
+            <button class="submenu-item" onclick="setTextEffect('fade', this)">
+                <span class="checkmark">✓</span>
+                <span>Fade</span>
+            </button>
+            <button class="submenu-item" onclick="setTextEffect('rainbow', this)">
+                <span class="checkmark">✓</span>
+                <span>Rainbow</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
+        <span>About</span>
+        <div class="submenu">
+            <button class="submenu-item" onclick="showHelp()">
+                <span>Help</span>
+            </button>
+            <button class="submenu-item" onclick="showVersion()">
+                <span>Version 1.0</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="bigNum"></div>
+<div id="rowNums">
+    <span class="num">1</span>
+    <span class="num">2</span>
+    <span class="num">3</span>
+    <span class="num">4</span>
+    <span class="num">5</span>
+    <span class="num">6</span>
+    <span class="num">7</span>
+    <span class="num">8</span>
+</div>
+
+<canvas id="barsCanvas"></canvas>
+<canvas id="scopeCanvas"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/hydra-synth@1.3.29/dist/hydra-synth.js"></script>
+<script>
+    // Initialize Hydra after everything loads
+    let hydra;
+
+    // Serial state
+    let port, reader, inputDone;
+    let serialConnected = false;
+    let bytesReceived = 0;
+    let currentLine = '';
+    const BAUD_RATE = 115200;
+
+    // Scope state
+    let scopeEnabled = false;
+    let scopeMode = 'green'; // 'green', 'white', 'rgb', 'bars'
+    let audioCtx = null;
+    let analyser = null;
+    let analyserTime = null;
+    let micSource = null;
+    let gainNode = null;
+    let scopeAnimationId = null;
+    let audioInitialized = false;
+    let currentGain = parseFloat(localStorage.getItem('audioGain') || '1');
+
+    // Scope canvases
+    const scopeCanvas = document.getElementById('scopeCanvas');
+    const scopeCtx = scopeCanvas ? scopeCanvas.getContext('2d') : null;
+    const barsCanvas = document.getElementById('barsCanvas');
+    const barsCtx = barsCanvas ? barsCanvas.getContext('2d') : null;
+
+    // Initialize canvas sizes
+    function initScopeCanvases() {
+        if (scopeCanvas) {
+            scopeCanvas.width = window.innerWidth;
+            scopeCanvas.height = window.innerHeight;
+        }
+        if (barsCanvas) {
+            barsCanvas.width = window.innerWidth;
+            barsCanvas.height = window.innerHeight;
+        }
+    }
+    initScopeCanvases();
+    window.addEventListener('resize', initScopeCanvases);
+
+    // Initialize audio context once (shared for scope)
+    async function initAudio() {
+        if (audioInitialized) return; // Already initialized
+
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            // Get microphone
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            micSource = audioCtx.createMediaStreamSource(stream);
+
+            // Gain node
+            gainNode = audioCtx.createGain();
+            gainNode.gain.value = currentGain;
+            micSource.connect(gainNode);
+
+            // Frequency analyser
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+
+            // Time domain analyser for oscilloscope
+            analyserTime = audioCtx.createAnalyser();
+            analyserTime.fftSize = 2048;
+
+            gainNode.connect(analyser);
+            gainNode.connect(analyserTime);
+
+            audioInitialized = true;
+            console.log('Audio initialized for scope');
+
+            // Update gain display
+            updateGainDisplay();
+
+            // Start feeding audio to Hydra
+            updateHydraAudio();
+        } catch (e) {
+            console.error('Audio initialization error:', e);
+        }
+    }
+
+    function setGain(value) {
+        currentGain = parseFloat(value);
+        if (gainNode) {
+            gainNode.gain.value = currentGain;
+        }
+        localStorage.setItem('audioGain', String(currentGain));
+        updateGainDisplay();
+    }
+
+    function updateGainDisplay() {
+        const gainDisplay = document.getElementById('gainValue');
+        if (gainDisplay) {
+            gainDisplay.textContent = currentGain.toFixed(1) + 'x';
+        }
+        const gainSlider = document.getElementById('gainSlider');
+        if (gainSlider) {
+            gainSlider.value = currentGain;
+        }
+    }
+
+    function toggleScope() {
+        const switchEl = document.getElementById('scopeSwitch');
+        scopeEnabled = !scopeEnabled;
+
+        if (scopeEnabled) {
+            switchEl.classList.add('active');
+            initAudio().then(() => {
+                // Start scope drawing
+                drawScope();
+                // Also ensure Hydra audio loop is running (for when Hydra is enabled later)
+                ensureHydraAudioLoop();
+            });
+        } else {
+            switchEl.classList.remove('active');
+            if (scopeAnimationId) {
+                cancelAnimationFrame(scopeAnimationId);
+                scopeAnimationId = null;
+            }
+            // Clear canvases
+            if (scopeCtx) scopeCtx.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+            if (barsCtx) barsCtx.clearRect(0, 0, barsCanvas.width, barsCanvas.height);
+        }
+    }
+
+    function setScopeMode(mode, button) {
+        console.log('Scope mode:', mode);
+        scopeMode = mode;
+
+        // Update selection
+        const submenu = button.closest('.submenu');
+        submenu.querySelectorAll('.submenu-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        button.classList.add('selected');
+
+        // Clear canvases when switching modes
+        if (scopeCtx) scopeCtx.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+        if (barsCtx) barsCtx.clearRect(0, 0, barsCanvas.width, barsCanvas.height);
+    }
+
+    function drawScope() {
+        if (!scopeEnabled) return;
+
+        scopeAnimationId = requestAnimationFrame(drawScope);
+
+        if (!analyser || !analyserTime) return;
+
+        const freqData = new Uint8Array(analyser.frequencyBinCount);
+        const timeData = new Uint8Array(analyserTime.fftSize);
+        analyser.getByteFrequencyData(freqData);
+        analyserTime.getByteTimeDomainData(timeData);
+
+        // Clear bars canvas (no persistence for bars)
+        if (barsCtx) barsCtx.clearRect(0, 0, barsCanvas.width, barsCanvas.height);
+
+        // Scope canvas uses phosphor persistence (fade effect inside drawOscilloscope)
+        // Only clear scope when in bars mode
+        if (scopeMode === 'bars') {
+            if (scopeCtx) scopeCtx.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+            drawBars(freqData);
+        } else {
+            drawOscilloscope(timeData);
+        }
+    }
+
+    function drawOscilloscope(timeData) {
+        if (!scopeCtx) return;
+
+        // Phosphor persistence: fade previous frame (creates trail effect)
+        scopeCtx.save();
+        scopeCtx.globalCompositeOperation = 'destination-out';
+        scopeCtx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+        scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+        scopeCtx.restore();
+
+        const midY = scopeCanvas.height * 0.5;
+        const scopeHeight = scopeCanvas.height * 0.30;
+        const sliceWidth = scopeCanvas.width / timeData.length;
+
+        scopeCtx.save();
+        scopeCtx.lineWidth = 2.0;
+
+        if (scopeMode === 'rgb') {
+            // RGB alternating lines effect - fast color cycling
+            const time = performance.now() * 0.01;
+            const colorPhase = Math.floor(time) % 3;
+            const colors = ['#ff0000', '#00ff00', '#0000ff'];
+            scopeCtx.strokeStyle = colors[colorPhase];
+            scopeCtx.shadowColor = colors[colorPhase] + '90';
+        } else if (scopeMode === 'green') {
+            // Green phosphor scope
+            scopeCtx.strokeStyle = '#00ff66';
+            scopeCtx.shadowColor = 'rgba(0,255,128,0.9)';
+        } else {
+            // White scope
+            scopeCtx.strokeStyle = '#ffffff';
+            scopeCtx.shadowColor = 'rgba(255,255,255,0.8)';
+        }
+
+        scopeCtx.shadowBlur = 12;
+        scopeCtx.globalCompositeOperation = 'lighter';
+
+        scopeCtx.beginPath();
+
+        let x = 0;
+        for (let i = 0; i < timeData.length; i++) {
+            const v = (timeData[i] - 128) / 128;
+            const y = midY + v * scopeHeight;
+            if (i === 0) {
+                scopeCtx.moveTo(x, y);
+            } else {
+                scopeCtx.lineTo(x, y);
+            }
+            x += sliceWidth;
+        }
+
+        scopeCtx.stroke();
+        scopeCtx.restore();
+    }
+
+    function drawBars(freqData) {
+        if (!barsCtx) return;
+
+        const bufferLength = freqData.length;
+        const maxIdx = Math.min(bufferLength, 80); // Limit to lower frequencies
+        const barWidth = (barsCanvas.width / maxIdx) * 2;
+        const scaleY = (barsCanvas.height * 0.8) / 255;
+
+        let x = 0;
+        for (let i = 0; i < maxIdx; i++) {
+            const mag = freqData[i];
+            const h = mag * scaleY;
+
+            // Blue gradient to match theme
+            const r = Math.min(255, mag * 0.3);
+            const g = Math.min(255, 50 + mag * 0.5);
+            const b = Math.min(255, 150 + mag * 0.4);
+
+            barsCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            barsCtx.fillRect(x, barsCanvas.height - h, barWidth - 1, h);
+            x += barWidth;
+        }
+    }
+
+    // Helper function to safely get audio value or fallback
+    function getAudioValue(index, fallback = 0) {
+        try {
+            if (window.a && window.a.fft && Array.isArray(window.a.fft) && window.a.fft[index] !== undefined) {
+                const val = window.a.fft[index];
+                return isNaN(val) ? fallback : val;
+            }
+        } catch (e) { }
+        return fallback;
+    }
+
+    // Hydra patterns from Hydra.html
+    const patterns = {
+        pattern1: () => {
+            osc(10, 0, () => getAudioValue(0, 0.5) * 4).color(0.3, 0.6, 1).out();
+        },
+        pattern2: () => {
+            osc(8, -0.5, 1).color(-1.5, -1.5, -1.5).blend(o0).rotate(-0.5, -0.5)
+                .modulate(shape(4).rotate(0.5, 0.5).scale(2).repeatX(2, 2)
+                    .modulate(o0, () => getAudioValue(0, 0.5) * 0.0005).repeatY(2, 2)).out(o0);
+        },
+        pattern3: () => {
+            osc(10, 0.1, 1.2)
+                .kaleid(() => getAudioValue(0, 0.5) * 10)
+                .rotate(0, 0.1)
+                .color(
+                    () => 0.3 + getAudioValue(0, 0.5) * 0.7,
+                    () => 0.6 + getAudioValue(1, 0.5) * 0.4,
+                    () => 1.0 + getAudioValue(2, 0.5) * 0.5
+                )
+                .out();
+        },
+        pattern4: () => {
+            shape(() => getAudioValue(0, 0.5) * 0.3 + 2, () => 0.1 + getAudioValue(1, 0.5) * 0.3)
+                .rotate(() => getAudioValue(0, 0.5) * 2)
+                .modulate(noise(() => getAudioValue(2, 0.5) * 4))
+                .color(() => 0.5 + getAudioValue(0, 0.5) * 0.5, () => 0.3 + getAudioValue(1, 0.5) * 0.7, () => 0.8 + getAudioValue(2, 0.5) * 0.2)
+                .out();
+        },
+        pattern5: () => {
+            osc(() => 60 + getAudioValue(0, 0.5) * 100, 0, 0)
+                .color(1, 1, 1)
+                .out();
+        }
+    };
+
+    function runPattern(patternName) {
+        console.log('Switching to:', patternName);
+
+        // Clear all outputs using Hydra's correct method
+        o0.init();
+        o1.init();
+        o2.init();
+        o3.init();
+
+        // Wait a bit for clear to complete, then run new pattern
+        setTimeout(() => {
+            if (patterns[patternName]) {
+                try {
+                    patterns[patternName]();
+                    console.log('Pattern', patternName, 'running');
+                } catch (error) {
+                    console.error('Error running pattern:', error);
+                }
+            }
+        }, 100);
+    }
+
+    // Menu functions
+    function showSubmenu(menuItem) {
+        menuItem.classList.add('active');
+    }
+
+    function hideSubmenu(menuItem) {
+        menuItem.classList.remove('active');
+    }
+
+    // Store selected items
+    const selectedItems = {
+        background: null,
+        textEffect: null,
+        textInput: null
+    };
+
+    // Hydra enabled state
+    let hydraEnabled = false;
+    let currentPattern = 'pattern1';
+
+    // Text Input state
+    let textDisplayEnabled = false;
+    let currentTextInputMode = 'pulse';
+    let bigText = '';
+    const bigEl = document.getElementById('bigNum');
+    const rowEl = document.getElementById('rowNums');
+
+    function setBigText(txt) {
+        bigText = String(txt);
+        const num = parseFloat(bigText);
+        const isRowMode = currentTextInputMode === 'row';
+
+        // In row mode: hide bigNum, show row with zoom-pop on active
+        if (isRowMode) {
+            if (bigEl) bigEl.style.display = 'none';
+            if (rowEl && !isNaN(num)) {
+                const n = Math.round(num);
+                const children = rowEl.querySelectorAll('.num');
+                children.forEach((el, idx) => {
+                    const isActive = (idx + 1) === n;
+                    if (isActive) {
+                        // Always restart animation (even if same number repeats)
+                        el.classList.remove('active');
+                        void el.offsetWidth;
+                        el.classList.add('active');
+                    } else {
+                        el.classList.remove('active');
+                    }
+                });
+            }
+            console.log('ROW mode - active:', Math.round(num));
+            return;
+        }
+
+        // Non-row modes: show bigNum with effects
+        if (bigEl) {
+            bigEl.style.display = 'block';
+            bigEl.textContent = bigText;
+            bigEl.classList.remove('pulseOnce', 'zoomOnce');
+            void bigEl.offsetWidth; // Force reflow
+            if (currentTextInputMode === 'zoom') {
+                bigEl.classList.add('zoomOnce');
+            } else {
+                bigEl.classList.add('pulseOnce');
+            }
+        }
+        console.log('BIG text set to:', bigText, 'mode:', currentTextInputMode);
+    }
+
+    function toggleTextDisplay() {
+        const switchEl = document.getElementById('textDisplaySwitch');
+        textDisplayEnabled = !textDisplayEnabled;
+
+        if (textDisplayEnabled) {
+            switchEl.classList.add('active');
+            updateTextDisplayVisibility();
+        } else {
+            switchEl.classList.remove('active');
+            if (bigEl) bigEl.style.display = 'none';
+            if (rowEl) rowEl.style.display = 'none';
+        }
+    }
+
+    function updateTextDisplayVisibility() {
+        if (!textDisplayEnabled) return;
+
+        if (currentTextInputMode === 'row') {
+            if (rowEl) rowEl.style.display = 'flex';
+            if (bigEl) bigEl.style.display = 'none';
+        } else {
+            if (rowEl) rowEl.style.display = 'none';
+            if (bigEl) bigEl.style.display = 'block';
+        }
+    }
+
+    function setTextInputMode(mode, button) {
+        console.log("Text input mode:", mode);
+        selectItemInGroup(button, 'textInput');
+        currentTextInputMode = mode;
+
+        if (textDisplayEnabled) {
+            updateTextDisplayVisibility();
+            // Re-apply current value for new effect
+            if (bigText) setBigText(bigText);
+        }
+    }
+
+    function toggleHydra() {
+        const switchEl = document.getElementById('hydraSwitch');
+        // Select Hydra's canvas (not our scope/bars canvases)
+        const canvas = document.querySelector('canvas:not(#scopeCanvas):not(#barsCanvas)');
+
+        hydraEnabled = !hydraEnabled;
+
+        if (hydraEnabled) {
+            switchEl.classList.add('active');
+            if (canvas) canvas.style.display = 'block';
+            // Initialize audio for Hydra patterns
+            initAudio().then(() => {
+                // Ensure audio loop is feeding Hydra
+                ensureHydraAudioLoop();
+                // Run the currently selected pattern
+                runPattern(currentPattern);
+            });
+        } else {
+            switchEl.classList.remove('active');
+            if (canvas) canvas.style.display = 'none';
+        }
+    }
+
+    function selectItem(button, group) {
+        // Remove selected class from all items in the same submenu
+        const submenu = button.closest('.submenu');
+        submenu.querySelectorAll('.submenu-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        // Add selected class to clicked item
+        button.classList.add('selected');
+    }
+
+    function selectItemInGroup(button, group) {
+        // Remove selected class from all items in the same group
+        const submenu = button.closest('.submenu');
+        submenu.querySelectorAll('.submenu-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        // Add selected class to clicked item
+        button.classList.add('selected');
+        selectedItems[group] = button;
+    }
+
+    async function connectSerial(event) {
+        const button = event.target.closest('.submenu-item');
+        const statusEl = document.getElementById('serialStatus');
+
+        // If already connected, disconnect
+        if (serialConnected) {
+            await disconnectSerial();
+            if (button) {
+                button.classList.remove('selected');
+                button.querySelector('span:last-child').textContent = 'Connect Port';
+            }
+            if (statusEl) statusEl.style.color = '#f44';
+            return;
+        }
+
+        try {
+            // Check Web Serial support
+            if (!('serial' in navigator)) {
+                console.error('Web Serial not supported in this browser.');
+                return;
+            }
+
+            // Request port and open at 115200
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: BAUD_RATE });
+
+            serialConnected = true;
+            bytesReceived = 0;
+            console.log('Serial connected at', BAUD_RATE, 'baud');
+
+            // Update status indicator to green
+            if (statusEl) statusEl.style.color = '#0f0';
+
+            // Update button state
+            if (button) {
+                button.classList.add('selected');
+                button.querySelector('span:last-child').textContent = 'Disconnect';
+            }
+
+            // Auto-enable text display
+            if (!textDisplayEnabled) {
+                toggleTextDisplay();
+            }
+
+            // Setup reader
+            const decoder = new TextDecoderStream();
+            inputDone = port.readable.pipeTo(decoder.writable);
+            reader = decoder.readable.getReader();
+
+            // Start reading
+            readSerialLoop();
+
+        } catch (e) {
+            console.error('Serial connection error:', e);
+            if (statusEl) statusEl.style.color = '#f44';
+        }
+    }
+
+    async function disconnectSerial() {
+        serialConnected = false;
+
+        if (reader) {
+            try {
+                await reader.cancel();
+                reader.releaseLock();
+            } catch (e) {
+                console.warn('Reader cancel error:', e);
+            }
+            reader = null;
+        }
+
+        if (inputDone) {
+            try {
+                await inputDone.catch(() => { });
+            } catch (e) {
+                console.warn('InputDone error:', e);
+            }
+            inputDone = null;
+        }
+
+        if (port) {
+            try {
+                await port.close();
+            } catch (e) {
+                console.warn('Port close error:', e);
+            }
+            port = null;
+        }
+
+        console.log('Serial disconnected');
+    }
+
+    async function readSerialLoop() {
+        while (serialConnected && reader) {
+            try {
+                const { value, done } = await reader.read();
+                if (done) {
+                    console.log('Reader done');
+                    break;
+                }
+                if (value) {
+                    bytesReceived += value.length;
+                    console.log('RX:', value, '| Total bytes:', bytesReceived);
+
+                    // Process incoming data
+                    for (let i = 0; i < value.length; i++) {
+                        const ch = value[i];
+                        if (ch === '\n' || ch === '\r') {
+                            if (currentLine.length > 0) {
+                                processSerialLine(currentLine);
+                                currentLine = '';
+                            }
+                        } else {
+                            currentLine += ch;
+                        }
+                    }
+
+                    // Also try to extract numbers from partial data (for responsive display)
+                    const numMatches = value.match(/[-+]?\d+(?:\.\d+)?/g);
+                    if (numMatches && numMatches.length && textDisplayEnabled) {
+                        setBigText(numMatches[numMatches.length - 1]);
+                    }
+                }
+            } catch (e) {
+                if (serialConnected) {
+                    console.error('Read error:', e);
+                }
+                break;
+            }
+        }
+    }
+
+    function processSerialLine(line) {
+        const trimmed = line.trim();
+        console.log('Serial line:', trimmed);
+
+        // If it's a number and text display is enabled, show it
+        if (trimmed && /^[-+]?\d+(?:\.\d+)?$/.test(trimmed) && textDisplayEnabled) {
+            setBigText(trimmed);
+        }
+    }
+
+    // Handle serial disconnect event
+    if ('serial' in navigator) {
+        navigator.serial.addEventListener('disconnect', (e) => {
+            console.log('Serial device disconnected');
+            serialConnected = false;
+
+            // Update status indicator
+            const statusEl = document.getElementById('serialStatus');
+            if (statusEl) statusEl.style.color = '#f44';
+
+            // Update button state
+            const connectBtn = document.querySelector('.submenu-item[onclick*="connectSerial"]');
+            if (connectBtn) {
+                connectBtn.classList.remove('selected');
+                connectBtn.querySelector('span:last-child').textContent = 'Connect Port';
+            }
+        });
+    }
+
+    function setBackground(patternName, button) {
+        console.log("Hydra background:", patternName);
+        selectItemInGroup(button, 'background');
+        currentPattern = patternName;
+        if (hydraEnabled) {
+            runPattern(patternName);
+        }
+    }
+
+    function setTextEffect(name, button) {
+        console.log("Text effect:", name);
+        selectItemInGroup(button, 'textEffect');
+    }
+
+    function showHelp() {
+        console.log("Help clicked");
+        alert("Help information would go here.");
+    }
+
+    function showVersion() {
+        console.log("Version clicked");
+        alert("Version 1.0");
+    }
+
+    // Hide menu on spacebar press
+    document.addEventListener('keydown', function (event) {
+        if (event.code === 'Space' && event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') {
+            event.preventDefault();
+            const menuBar = document.querySelector('.menu-bar');
+            menuBar.classList.toggle('hidden');
+        }
+    });
+
+    // Feed audio data to Hydra's a.fft array
+    let hydraAudioLoopRunning = false;
+
+    // Create global audio object for Hydra if it doesn't exist
+    window.a = window.a || { fft: new Array(128).fill(0) };
+
+    function updateHydraAudio() {
+        if (!audioInitialized || !analyser) {
+            hydraAudioLoopRunning = false;
+            return;
+        }
+
+        hydraAudioLoopRunning = true;
+
+        const freqData = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(freqData);
+
+        // Ensure window.a.fft exists with enough elements
+        if (!window.a) {
+            window.a = { fft: new Array(freqData.length).fill(0) };
+        }
+        if (!window.a.fft || window.a.fft.length < freqData.length) {
+            window.a.fft = new Array(freqData.length).fill(0);
+        }
+
+        // Normalize to 0-1 range and update the fft array
+        for (let i = 0; i < freqData.length; i++) {
+            window.a.fft[i] = (freqData[i] / 255) * currentGain;
+        }
+
+        requestAnimationFrame(updateHydraAudio);
+    }
+
+    // Ensure audio loop is running
+    function ensureHydraAudioLoop() {
+        if (audioInitialized && !hydraAudioLoopRunning) {
+            updateHydraAudio();
+        }
+    }
+
+    // Initialize Hydra (but don't start patterns - Hydra is disabled by default)
+    window.addEventListener('load', () => {
+        // Ensure global audio object exists before Hydra init
+        window.a = window.a || { fft: new Array(128).fill(0) };
+
+        if (typeof Hydra !== 'undefined' && !hydra) {
+            // Initialize Hydra - we'll feed audio from our shared source
+            hydra = new Hydra({ detectAudio: false });
+
+            // Hide Hydra canvas initially (Hydra starts disabled)
+            setTimeout(() => {
+                const canvas = document.querySelector('canvas:not(#scopeCanvas):not(#barsCanvas)');
+                if (canvas) canvas.style.display = 'none';
+            }, 100);
+        }
+
+        // Initialize gain display
+        updateGainDisplay();
+    });
+</script>

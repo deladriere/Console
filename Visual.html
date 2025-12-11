@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Audio Visualizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: black;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Scope these styles to our full-screen canvases only */
+        #visualizer,
+        #scope {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        #visualizer {
+            z-index: 0;
+        }
+
+        #scope {
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        #scopeWhite {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 6;
+            pointer-events: none;
+        }
+
+        #controls {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            font-size: 14px;
+            backdrop-filter: blur(4px);
+        }
+
+        #controls input[type="range"] {
+            width: 220px;
+            vertical-align: middle;
+        }
+
+        #controls .value {
+            display: inline-block;
+            width: 48px;
+            text-align: right;
+            margin-left: 8px;
+        }
+
+        #toggles {
+            margin-top: 6px;
+            display: inline-flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        #toggles label {
+            user-select: none;
+            cursor: pointer;
+        }
+
+        #binaryFont {
+            margin-left: 12px;
+        }
+
+        /* AudioMotion container overlay (bottom strip) */
+        #amContainer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 28vh;
+            z-index: 3;
+        }
+
+        #amOverlay {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 28vh;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        #binary {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 8;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="controls">
+        <label for="gain">gain</label>
+        <input id="gain" type="range" min="0" max="10" step="0.01">
+        <span class="value" id="gainValue"></span>
+        <div id="toggles">
+            <label><input id="toggleBars" type="checkbox"> Bars</label>
+            <label><input id="toggleScope" type="checkbox"> Scope</label>
+            <label><input id="toggleScopeWhite" type="checkbox"> Scope White</label>
+            <label><input id="toggleAM" type="checkbox"> AM</label>
+            <label><input id="toggleAMMirror" type="checkbox"> AM Mirror</label>
+            <label><input id="toggleBeat" type="checkbox"> Beat</label>
+            <label><input id="toggleRGB" type="checkbox"> RGB Lines</label>
+            <label><input id="toggleBinary" type="checkbox"> Binary</label>
+            <select id="binaryFont">
+                <option value="mono">Monospace</option>
+                <option value="system">System UI</option>
+                <option value="helvetica">Helvetica Neue</option>
+                <option value="consolas">Consolas</option>
+                <option value="vt323">VT323</option>
+            </select>
+        </div>
+    </div>
+    <canvas id="visualizer"></canvas>
+    <canvas id="scope"></canvas>
+    <canvas id="scopeWhite"></canvas>
+    <div id="amContainer" style="display:none"></div>
+    <canvas id="binary" style="display:none"></canvas>
+    <script>
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const scopeCanvas = document.getElementById('scope');
+        const scopeCtx = scopeCanvas.getContext('2d');
+        scopeCanvas.width = window.innerWidth;
+        scopeCanvas.height = window.innerHeight;
+        const scopeWhiteCanvas = document.getElementById('scopeWhite');
+        const scopeWhiteCtx = scopeWhiteCanvas.getContext('2d');
+        scopeWhiteCanvas.width = window.innerWidth;
+        scopeWhiteCanvas.height = window.innerHeight;
+        window.addEventListener('resize', () => {
+            scopeWhiteCanvas.width = window.innerWidth;
+            scopeWhiteCanvas.height = window.innerHeight;
+        });
+
+        const gainSlider = document.getElementById('gain');
+        const gainValue = document.getElementById('gainValue');
+        const toggleBars = document.getElementById('toggleBars');
+        const toggleScope = document.getElementById('toggleScope');
+        const toggleAM = document.getElementById('toggleAM');
+        const toggleAMMirror = document.getElementById('toggleAMMirror');
+        const toggleBeat = document.getElementById('toggleBeat');
+        const toggleRGB = document.getElementById('toggleRGB');
+        const amContainer = document.getElementById('amContainer');
+        const binaryCanvas = document.getElementById('binary');
+        const binaryCtx = binaryCanvas.getContext('2d');
+        const controlsEl = document.getElementById('controls');
+        // Binary renderer state
+        const binaryCharW = 42; // must match glyph font size
+        const binaryCharH = 54;
+        let binaryCols = 0;
+        let binaryRows = 0;
+        let binaryWriteIdx = 0; // ring buffer write position (row)
+        let binaryBuffer = []; // ring buffer rows -> arrays of 0/1
+        let glyph0 = null;
+        let glyph1 = null;
+        let binaryLastTime = performance.now();
+        const binaryTargetFillMs = 300; // target time to refresh the entire screen
+        function setGainDisplay(value) {
+            gainValue.textContent = value.toFixed(2) + 'x';
+        }
+        const storedGain = parseFloat(localStorage.getItem('micGain') || '1');
+        const initialGain = isFinite(storedGain) ? storedGain : 1;
+        gainSlider.value = String(initialGain);
+        setGainDisplay(initialGain);
+        let audioCtx;
+        let gainNode;
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioCtx.createMediaStreamSource(stream);
+                const analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 256; // frequency bars
+                gainNode = audioCtx.createGain();
+                gainNode.gain.value = initialGain;
+                source.connect(gainNode);
+                gainNode.connect(analyser);
+
+                // Time-domain analyser for oscilloscope
+                const analyserTime = audioCtx.createAnalyser();
+                analyserTime.fftSize = 2048;
+                gainNode.connect(analyserTime);
+
+                // (Mouth/vowel detection removed)
+
+                gainSlider.addEventListener('input', () => {
+                    const newGain = parseFloat(gainSlider.value);
+                    gainNode.gain.value = newGain;
+                    setGainDisplay(newGain);
+                    localStorage.setItem('micGain', String(newGain));
+                });
+                gainSlider.addEventListener('change', () => {
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+                });
+                // (Mouth sensitivity removed)
+
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                const timeDomainArray = new Uint8Array(analyserTime.fftSize);
+                // (Vowel arrays removed)
+
+                // Persistent settings for toggles
+                function getBool(key, def) {
+                    const v = localStorage.getItem(key);
+                    if (v === null) return def;
+                    return v === '1';
+                }
+                function setBool(key, val) {
+                    localStorage.setItem(key, val ? '1' : '0');
+                }
+
+                let showBars = getBool('showBars', true);
+                let showScope = getBool('showScope', true);
+                let showAM = getBool('showAM', false);
+                let showAMMirror = getBool('showAMMirror', false);
+                let showBeat = getBool('showBeat', true);
+                let showRGB = getBool('showRGB', false);
+                let showBinary = getBool('showBinary', false);
+                let showScopeWhite = getBool('showScopeWhite', false);
+                let showControls = getBool('showControls', true);
+                toggleBars.checked = showBars;
+                toggleScope.checked = showScope;
+                toggleAM.checked = showAM;
+                toggleAMMirror.checked = showAMMirror;
+                toggleBeat.checked = showBeat;
+                toggleRGB.checked = showRGB;
+                document.getElementById('toggleBinary').checked = showBinary;
+                document.getElementById('toggleScopeWhite').checked = showScopeWhite;
+                controlsEl.style.display = showControls ? 'block' : 'none';
+                toggleBars.addEventListener('change', () => { showBars = toggleBars.checked; setBool('showBars', showBars); });
+                toggleScope.addEventListener('change', () => { showScope = toggleScope.checked; setBool('showScope', showScope); if (!showScope) { scopeCtx.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height); } });
+                document.getElementById('toggleScopeWhite').addEventListener('change', (e) => { showScopeWhite = e.target.checked; setBool('showScopeWhite', showScopeWhite); if (!showScopeWhite) { scopeWhiteCtx.clearRect(0, 0, scopeWhiteCanvas.width, scopeWhiteCanvas.height); } });
+                toggleAM.addEventListener('change', () => {
+                    showAM = toggleAM.checked; setBool('showAM', showAM);
+                    if (showAM) {
+                        amContainer.style.display = 'block';
+                        initAudioMotion();
+                    } else {
+                        amContainer.style.display = 'none';
+                        if (audioMotion) { try { audioMotion.destroy(); } catch (e) { console.warn('AudioMotion destroy error', e); } audioMotion = null; }
+                        if (amGainNode) { try { amGainNode.disconnect(); } catch (e) { } amGainNode = null; }
+                        amInitRequested = false;
+                    }
+                });
+                toggleAMMirror.addEventListener('change', () => {
+                    showAMMirror = toggleAMMirror.checked; setBool('showAMMirror', showAMMirror);
+                    if (audioMotion) {
+                        audioMotion.setOptions({
+                            mirror: showAMMirror ? 'left' : false,
+                            reflexRatio: showAMMirror ? 0.5 : 0,
+                            reflexAlpha: 0.15
+                        });
+                    }
+                });
+                toggleBeat.addEventListener('change', () => { showBeat = toggleBeat.checked; setBool('showBeat', showBeat); if (!showBeat) { beatRects.length = 0; } });
+                toggleRGB.addEventListener('change', () => { showRGB = toggleRGB.checked; setBool('showRGB', showRGB); });
+                // Toggle controls (menu) visibility with Space key
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && !e.repeat) {
+                        const tag = (document.activeElement && document.activeElement.tagName) || '';
+                        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+                            showControls = !showControls;
+                            controlsEl.style.display = showControls ? 'block' : 'none';
+                            setBool('showControls', showControls);
+                            e.preventDefault();
+                        }
+                    }
+                });
+                function getFontCss() {
+                    const sel = localStorage.getItem('binaryFont') || 'mono';
+                    switch (sel) {
+                        case 'system':
+                            return 'bold ' + (binaryCharH - 6) + 'px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif';
+                        case 'helvetica':
+                            return 'bold ' + (binaryCharH - 6) + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+                        case 'consolas':
+                            return 'bold ' + (binaryCharH - 6) + 'px Consolas, "Courier New", monospace';
+                        case 'vt323':
+                            return (binaryCharH - 4) + 'px "VT323", monospace';
+                        default:
+                            return 'bold ' + (binaryCharH - 6) + 'px monospace';
+                    }
+                }
+                function buildGlyph(ch) {
+                    const cv = document.createElement('canvas');
+                    cv.width = binaryCharW;
+                    cv.height = binaryCharH;
+                    const gctx = cv.getContext('2d');
+                    gctx.fillStyle = '#ffffff';
+                    gctx.font = getFontCss();
+                    gctx.textBaseline = 'middle';
+                    gctx.textAlign = 'center';
+                    gctx.fillText(ch, Math.floor(binaryCharW / 2), Math.floor(binaryCharH / 2));
+                    return cv;
+                }
+                function initBinaryGrid() {
+                    binaryCols = Math.max(5, Math.floor(binaryCanvas.width / binaryCharW));
+                    binaryRows = Math.max(5, Math.floor(binaryCanvas.height / binaryCharH));
+                    binaryBuffer = Array.from({ length: binaryRows }, () => new Array(binaryCols).fill(0));
+                    binaryWriteIdx = 0;
+                    glyph0 = buildGlyph('0');
+                    glyph1 = buildGlyph('1');
+                }
+                function sizeBinary() {
+                    binaryCanvas.width = window.innerWidth;
+                    binaryCanvas.height = window.innerHeight;
+                    binaryLastTime = performance.now();
+                    initBinaryGrid();
+                    binaryCtx.clearRect(0, 0, binaryCanvas.width, binaryCanvas.height);
+                }
+                sizeBinary();
+                window.addEventListener('resize', sizeBinary);
+                document.getElementById('toggleBinary').addEventListener('change', (e) => {
+                    showBinary = e.target.checked; setBool('showBinary', showBinary);
+                    binaryCanvas.style.display = showBinary ? 'block' : 'none';
+                    if (showBinary) {
+                        binaryLastTime = performance.now();
+                        initBinaryGrid();
+                    } else {
+                        binaryCtx.clearRect(0, 0, binaryCanvas.width, binaryCanvas.height);
+                    }
+                });
+                if (showBinary) binaryCanvas.style.display = 'block';
+                const binaryFontSelect = document.getElementById('binaryFont');
+                const storedFont = localStorage.getItem('binaryFont') || 'mono';
+                binaryFontSelect.value = storedFont;
+                binaryFontSelect.addEventListener('change', () => {
+                    localStorage.setItem('binaryFont', binaryFontSelect.value);
+                    // rebuild glyphs with new font
+                    glyph0 = buildGlyph('0');
+                    glyph1 = buildGlyph('1');
+                });
+
+                // (Vowel band helpers removed)
+
+                // AudioMotion state
+                let audioMotion = null;
+                let amGainNode = null; // visual-only gain for AM bars height
+                let amInitRequested = false;
+                function initAudioMotion() {
+                    if (audioMotion || amInitRequested === true) return;
+                    amInitRequested = true;
+                    import('https://cdn.skypack.dev/audiomotion-analyzer?min').then(mod => {
+                        const AudioMotionAnalyzer = mod.default;
+                        // create a dedicated gain node to scale AM input without affecting other visuals
+                        amGainNode = audioCtx.createGain();
+                        amGainNode.gain.value = 2.5; // boost AM bars height
+                        try { gainNode.connect(amGainNode); } catch (e) { }
+                        audioMotion = new AudioMotionAnalyzer(amContainer, {
+                            audioCtx: audioCtx,
+                            source: amGainNode,
+                            height: Math.floor(window.innerHeight * 0.28),
+                            mode: 3,
+                            barSpace: 0.2,
+                            ledBars: true,
+                            connectSpeakers: false,
+                            maxFreq: 10000,
+                            font: '11px "Helvetica Neue", Arial, Helvetica, sans-serif',
+                            minDecibels: -70
+                        });
+                        // Apply mirror/reflection options if requested
+                        audioMotion.setOptions({
+                            mirror: showAMMirror ? 'left' : false,
+                            reflexRatio: showAMMirror ? 0.5 : 0,
+                            reflexAlpha: 0.15
+                        });
+                        window.addEventListener('resize', () => {
+                            if (audioMotion) {
+                                audioMotion.setOptions({ height: Math.floor(window.innerHeight * 0.28) });
+                            }
+                        });
+                    }).catch(err => console.error('AudioMotion load error:', err));
+                }
+                if (showAM) { amContainer.style.display = 'block'; initAudioMotion(); }
+
+                // Beat detection state (low-frequency energy + adaptive threshold)
+                const beatRects = [];
+                let beatEma = 0; // EMA of low-band energy
+                let beatEmaSq = 0; // EMA of low-band energy^2
+                let rmsEma = 0; // secondary EMA of time-domain RMS (for gating)
+                const beatAlpha = 0.05; // smoothing factor
+                let lastBeatTime = 0;
+                const beatMinIntervalMs = 250;
+                let beatCount = 0;
+
+                function draw() {
+                    requestAnimationFrame(draw);
+                    analyser.getByteFrequencyData(dataArray);
+                    analyserTime.getByteTimeDomainData(timeDomainArray);
+
+                    // Opaque clear for bargraph layer
+                    ctx.fillStyle = "black";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    if (showBars) {
+                        const nyquist = audioCtx.sampleRate / 2;
+                        const maxHz = 10000;
+                        const maxIdx = Math.max(1, Math.min(bufferLength, Math.floor(maxHz / nyquist * bufferLength)));
+                        const barWidth = (canvas.width / maxIdx) * 2.5;
+                        const scaleY = (canvas.height * 0.9) / 255; // scale magnitudes to ~90% of screen height
+                        let x = 0;
+                        for (let i = 0; i < maxIdx; i++) {
+                            const mag = dataArray[i];
+                            const h = mag * scaleY;
+                            ctx.fillStyle = `rgb(${mag + 100},50,200)`;
+                            ctx.fillRect(x, canvas.height - h, barWidth, h);
+                            x += barWidth + 1;
+                        }
+                    }
+
+                    // Beat detection (low-frequency band energy with adaptive threshold)
+                    if (showBeat) {
+                        // time-domain RMS (secondary gate)
+                        let sumSq = 0;
+                        for (let i = 0; i < timeDomainArray.length; i++) {
+                            const v = (timeDomainArray[i] - 128) / 128; // -1..1
+                            sumSq += v * v;
+                        }
+                        const rms = Math.sqrt(sumSq / timeDomainArray.length);
+                        rmsEma = rmsEma === 0 ? rms : (1 - beatAlpha) * rmsEma + beatAlpha * rms;
+
+                        // low-frequency band (e.g., 40–200 Hz) energy from spectrum
+                        const nyq = audioCtx.sampleRate / 2;
+                        const lowFrom = 40, lowTo = 200;
+                        const fromIdx = Math.max(0, Math.floor(lowFrom / nyq * bufferLength));
+                        const toIdx = Math.min(bufferLength - 1, Math.ceil(lowTo / nyq * bufferLength));
+                        let lowSum = 0, lowCount = 0;
+                        for (let i = fromIdx; i <= toIdx; i++) { lowSum += dataArray[i]; lowCount++; }
+                        const lowAvg = lowCount > 0 ? (lowSum / lowCount) : 0;
+
+                        if (beatEma === 0 && beatEmaSq === 0) {
+                            beatEma = lowAvg;
+                            beatEmaSq = lowAvg * lowAvg;
+                        } else {
+                            beatEma = (1 - beatAlpha) * beatEma + beatAlpha * lowAvg;
+                            beatEmaSq = (1 - beatAlpha) * beatEmaSq + beatAlpha * (lowAvg * lowAvg);
+                        }
+                        const variance = Math.max(0, beatEmaSq - beatEma * beatEma);
+                        const sigma = Math.sqrt(variance);
+                        const threshold = Math.max(5, beatEma + 1.2 * sigma); // adaptive threshold
+                        const now = performance.now();
+
+                        if (lowAvg > threshold && rms > 0.01 && (now - lastBeatTime) > beatMinIntervalMs) {
+                            lastBeatTime = now;
+                            beatCount++;
+                            // Create 3 flashing rectangles at random positions
+                            for (let k = 0; k < 3; k++) {
+                                const w = Math.random() * (canvas.width * 0.15) + canvas.width * 0.05;
+                                const h = Math.random() * (canvas.height * 0.15) + canvas.height * 0.05;
+                                const x = Math.random() * (canvas.width - w);
+                                const y = Math.random() * (canvas.height - h);
+                                beatRects.push({ x, y, w, h, born: now, lifeMs: 220 });
+                            }
+                        }
+
+                        // Draw and decay beat rectangles above bars
+                        const now2 = performance.now();
+                        for (let i = beatRects.length - 1; i >= 0; i--) {
+                            const r = beatRects[i];
+                            const t = 1 - (now2 - r.born) / r.lifeMs;
+                            if (t <= 0) {
+                                beatRects.splice(i, 1);
+                                continue;
+                            }
+                            ctx.save();
+                            ctx.globalAlpha = t * t;
+                            ctx.strokeStyle = `rgba(255, 255, 0, ${0.8})`;
+                            ctx.lineWidth = 3;
+                            ctx.strokeRect(r.x, r.y, r.w, r.h);
+                            ctx.restore();
+                        }
+
+                        // Debug readout (top-left)
+                        ctx.save();
+                        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                        ctx.fillRect(8, 8, 170, 50);
+                        ctx.fillStyle = '#00ff66';
+                        ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+                        ctx.textBaseline = 'top';
+                        ctx.fillText(`lowAvg: ${lowAvg.toFixed(1)}`, 14, 12);
+                        ctx.fillText(`thr: ${threshold.toFixed(1)}  rms: ${rms.toFixed(3)}`, 14, 28);
+                        ctx.restore();
+                    }
+
+                    // Oscilloscope trace (mid-screen, green phosphor glow)
+                    const midY = scopeCanvas.height * 0.5;
+                    const scopeHeight = scopeCanvas.height * 0.20 * 1.5; // amplitude scale (boosted 1.5x)
+                    const sliceWidth = scopeCanvas.width / timeDomainArray.length;
+
+                    if (showScope) {
+                        // Fade previous scope frame without building opacity over time
+                        scopeCtx.save();
+                        scopeCtx.globalCompositeOperation = "destination-out";
+                        scopeCtx.fillStyle = "rgba(0, 0, 0, 0.12)";
+                        scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+                        scopeCtx.restore();
+
+                        scopeCtx.save();
+                        scopeCtx.lineWidth = 2.0;
+
+                        if (showRGB) {
+                            // RGB alternating lines effect - fast color cycling
+                            const time = performance.now() * 0.01; // Fast cycling
+                            const colorPhase = Math.floor(time) % 3; // 0, 1, or 2
+                            const colors = ["#ff0000", "#00ff00", "#0000ff"]; // Red, Green, Blue
+                            scopeCtx.strokeStyle = colors[colorPhase];
+                            scopeCtx.shadowColor = colors[colorPhase] + "90"; // Add alpha for glow
+                        } else {
+                            // Normal green scope
+                            scopeCtx.strokeStyle = "#00ff66";
+                            scopeCtx.shadowColor = "rgba(0,255,128,0.9)";
+                        }
+
+                        scopeCtx.shadowBlur = 12;
+                        scopeCtx.globalCompositeOperation = "lighter";
+
+                        scopeCtx.beginPath();
+                        let x2 = 0;
+                        for (let i = 0; i < timeDomainArray.length; i++) {
+                            const v = (timeDomainArray[i] - 128) / 128; // -1..1
+                            const y = midY + v * scopeHeight;
+                            if (i === 0) {
+                                scopeCtx.moveTo(x2, y);
+                            } else {
+                                scopeCtx.lineTo(x2, y);
+                            }
+                            x2 += sliceWidth;
+                        }
+                        scopeCtx.stroke();
+                        scopeCtx.restore();
+                    } else {
+                        // No scope: ensure overlay is clean for other overlays
+                        scopeCtx.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+                    }
+
+                    // White dashed oscilloscope (no trail)
+                    if (showScopeWhite) {
+                        scopeWhiteCtx.clearRect(0, 0, scopeWhiteCanvas.width, scopeWhiteCanvas.height);
+                        scopeWhiteCtx.save();
+                        scopeWhiteCtx.lineWidth = 4.0;
+                        scopeWhiteCtx.strokeStyle = '#ffffff';
+                        scopeWhiteCtx.setLineDash([6, 6]);
+                        scopeWhiteCtx.globalCompositeOperation = 'source-over';
+                        const midYw = scopeWhiteCanvas.height * 0.5;
+                        const scopeHeightW = scopeWhiteCanvas.height * 0.20;
+                        const sliceWidthW = scopeWhiteCanvas.width / timeDomainArray.length;
+                        scopeWhiteCtx.beginPath();
+                        let xw = 0;
+                        for (let i = 0; i < timeDomainArray.length; i++) {
+                            const v = (timeDomainArray[i] - 128) / 128;
+                            const y = midYw + v * scopeHeightW;
+                            if (i === 0) scopeWhiteCtx.moveTo(xw, y); else scopeWhiteCtx.lineTo(xw, y);
+                            xw += sliceWidthW;
+                        }
+                        scopeWhiteCtx.stroke();
+                        scopeWhiteCtx.restore();
+                    } else {
+                        scopeWhiteCtx.clearRect(0, 0, scopeWhiteCanvas.width, scopeWhiteCanvas.height);
+                    }
+
+                    // Binary 1/0 screen full-frame (no sweep): draw entire grid each frame
+                    if (showBinary) {
+                        binaryCtx.clearRect(0, 0, binaryCanvas.width, binaryCanvas.height);
+                        binaryCtx.save();
+                        // using pre-rendered glyph canvases for speed and custom shapes
+                        const cols = Math.max(5, Math.floor(binaryCanvas.width / binaryCharW));
+                        const rows = Math.max(5, Math.floor(binaryCanvas.height / binaryCharH));
+                        const samplesPerCol = Math.max(1, Math.floor(timeDomainArray.length / cols));
+                        for (let r = 0; r < rows; r++) {
+                            const y = r * binaryCharH;
+                            let x = 0;
+                            // per-row offset to decorrelate rows and avoid visible sweep
+                            const offset = Math.floor((r / rows) * timeDomainArray.length);
+                            for (let c = 0; c < cols; c++) {
+                                let sum = 0;
+                                for (let i = 0; i < samplesPerCol; i++) {
+                                    const idx = (offset + c * samplesPerCol + i) % timeDomainArray.length;
+                                    const v = (timeDomainArray[idx] - 128) / 128;
+                                    sum += Math.abs(v);
+                                }
+                                const avg = sum / samplesPerCol;
+                                const isOne = avg > 0.05;
+                                const g = isOne ? glyph1 : glyph0;
+                                if (g) binaryCtx.drawImage(g, x, y);
+                                x += binaryCharW;
+                            }
+                        }
+                        binaryCtx.restore();
+                    }
+                    // (Mouth detection and drawing removed)
+                }
+                draw();
+            })
+            .catch(err => {
+                console.error("Error with audio input: ", err);
+            });
+    </script>
+</body>
+
+</html>

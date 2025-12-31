@@ -15,6 +15,7 @@
         top: 0;
         left: 0;
         z-index: 0;
+        pointer-events: none;
     }
 
     #barsCanvas {
@@ -37,6 +38,35 @@
         z-index: 2;
         pointer-events: none;
         display: block;
+    }
+
+    /* Centered text layer (no translate; VFX aligns correctly) */
+    #textLayer {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        user-select: none;
+        z-index: 100;
+        /* above backdrop (99) */
+    }
+
+    /* VFX wrapper: big safe area to avoid cropping */
+    #vfxBox {
+        /* Make the VFX target full-screen so nothing can crop and centering is stable */
+        position: relative;
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        padding: 0;
+        background: transparent;
+        pointer-events: none;
+        /* never block menu interactions */
     }
 
     .menu-bar {
@@ -78,6 +108,23 @@
         background: rgba(8, 136, 255, 0.3);
     }
 
+    /* Developer-only UI (hidden by default; toggle with 'd') */
+    .menu-item.dev-only {
+        display: none;
+    }
+
+    .submenu-item.dev-only {
+        display: none;
+    }
+
+    body.dev-mode .menu-item.dev-only {
+        display: block;
+    }
+
+    body.dev-mode .submenu-item.dev-only {
+        display: flex;
+    }
+
     .submenu {
         position: absolute;
         top: 100%;
@@ -108,6 +155,7 @@
         align-items: center;
         width: 100%;
         padding: 10px 20px;
+        box-sizing: border-box;
         background: none;
         color: white;
         border: none;
@@ -141,7 +189,7 @@
     .submenu-separator {
         height: 1px;
         background: #08f3;
-        margin: 4px 8px;
+        margin: 6px 0;
     }
 
     .submenu-label {
@@ -152,6 +200,31 @@
         letter-spacing: 1px;
         font-weight: bold;
         pointer-events: none;
+    }
+
+    /* Consistent layout for sliders and value labels */
+    .submenu-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .submenu-label-row .value {
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 700;
+        letter-spacing: 0;
+        text-transform: none;
+    }
+
+    .submenu-control {
+        padding: 8px 20px 12px;
+        box-sizing: border-box;
+    }
+
+    .submenu-range {
+        width: 100%;
+        cursor: pointer;
     }
 
     .submenu-item.disabled {
@@ -166,6 +239,7 @@
         justify-content: space-between;
         width: 100%;
         padding: 10px 20px;
+        box-sizing: border-box;
         font-family: monospace;
         font-size: 14px;
         color: white;
@@ -209,53 +283,90 @@
 
     /* Big Number Display */
     #bigNum {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        position: relative;
+        display: inline-block;
+        box-sizing: border-box;
+        /* Extra padding so shadows/stroke don't get cropped */
+        padding: 0.3em 0.5em;
+        transform-origin: center center;
         color: #08f;
         font-family: 'Press Start 2P', monospace;
-        text-shadow: 0 0 12px rgba(0, 136, 255, 0.8), 0 0 32px rgba(0, 136, 255, 0.4);
         font-weight: 700;
         letter-spacing: 2px;
         pointer-events: none;
         user-select: none;
         white-space: nowrap;
-        z-index: 5;
         font-size: min(40vh, 40vw);
         line-height: 1;
         display: none;
     }
 
+    /* Dark backdrop behind text (keeps scope "in background") */
+    #textBackdrop {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 99;
+        /* below text (100+), above scope (2) */
+        display: none;
+        background: radial-gradient(circle at center,
+                rgba(0, 0, 0, 0.62) 0%,
+                rgba(0, 0, 0, 0.34) 28%,
+                rgba(0, 0, 0, 0.00) 60%);
+    }
+
+    /* Word Display */
+    #wordText {
+        position: relative;
+        display: inline-block;
+        box-sizing: border-box;
+        /* Extra padding so shadows/stroke don't get cropped */
+        padding: 0.3em 0.5em;
+        color: #ffffff;
+        font-family: 'Press Start 2P', monospace;
+        font-weight: 700;
+        letter-spacing: 1px;
+        pointer-events: none;
+        user-select: none;
+        text-align: center;
+        max-width: 96vw;
+        /* Words should stay on one line */
+        white-space: nowrap;
+        line-height: 1.2;
+        display: none;
+        font-size: min(14vh, 14vw);
+    }
+
     /* Row effect: 1..8 outlines, active full color */
     #rowNums {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 90vw;
+        position: relative;
+        width: 100vw;
+        padding: 0 2vw;
+        box-sizing: border-box;
         display: none;
         justify-content: space-between;
         align-items: center;
-        z-index: 6;
+        gap: clamp(2px, 0.6vw, 10px);
         pointer-events: none;
         user-select: none;
     }
 
     #rowNums .num {
         font-family: 'Press Start 2P', monospace;
-        font-size: min(12vh, 12vw);
+        /* Must fit 8 digits across small screens */
+        font-size: min(10vh, 7vw);
         line-height: 1;
+        flex: 1 1 0;
+        min-width: 0;
+        text-align: center;
         color: transparent;
         -webkit-text-stroke: 2px #08f;
-        text-shadow: 0 0 6px rgba(0, 136, 255, 0.25);
         opacity: 0.5;
     }
 
     #rowNums .num.active {
         color: #08f;
         -webkit-text-stroke: 0;
-        text-shadow: 0 0 16px rgba(0, 136, 255, 0.9), 0 0 40px rgba(0, 136, 255, 0.5), 0 0 60px rgba(0, 136, 255, 0.3);
         opacity: 1;
         animation: rowZoomPop 0.12s cubic-bezier(0.2, 0, 0.2, 1) forwards;
     }
@@ -274,47 +385,137 @@
 
     @keyframes pulseGlow {
         0% {
-            text-shadow: 0 0 10px rgba(0, 136, 255, 0.6), 0 0 24px rgba(0, 136, 255, 0.3);
             filter: brightness(0.95);
         }
 
         50% {
-            text-shadow: 0 0 18px rgba(0, 136, 255, 0.95), 0 0 44px rgba(0, 136, 255, 0.55);
-            filter: brightness(1.12);
+            filter: brightness(1.2);
         }
 
         100% {
-            text-shadow: 0 0 10px rgba(0, 136, 255, 0.6), 0 0 24px rgba(0, 136, 255, 0.3);
             filter: brightness(0.95);
         }
     }
 
     .pulseOnce {
-        animation: pulseGlow 0.3s ease-in-out 1;
-        will-change: filter, text-shadow;
+        animation: pulseGlow 0.24s ease-in-out 1;
+        will-change: filter;
+    }
+
+    /* Stronger pulse for word mode */
+    @keyframes wordPulseGlow {
+        0% {
+            filter: brightness(0.92) saturate(1.0);
+        }
+
+        50% {
+            filter: brightness(1.35) saturate(1.12);
+        }
+
+        100% {
+            filter: brightness(0.92) saturate(1.0);
+        }
     }
 
     @keyframes zoomInNum {
         0% {
-            transform: translate(-50%, -50%) scale(3);
+            transform: scale(3);
             filter: brightness(1.3);
             opacity: 0.7;
         }
 
         100% {
-            transform: translate(-50%, -50%) scale(1);
+            transform: scale(1);
             filter: brightness(1);
             opacity: 1;
         }
     }
 
     .zoomOnce {
-        animation: zoomInNum 0.25s ease-out forwards;
+        animation: zoomInNum 0.20s ease-out forwards;
         will-change: transform, filter, opacity;
+    }
+
+    /* Word mode: pulse only */
+    .wordPulseOnce {
+        animation: wordPulseGlow 0.24s ease-in-out 1;
+        will-change: filter;
+    }
+
+    /* About modal (in-page) */
+    #aboutOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 2000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+    }
+
+    #aboutOverlay.open {
+        display: flex;
+    }
+
+    #aboutModal {
+        width: min(820px, 96vw);
+        max-height: min(720px, 90vh);
+        overflow: auto;
+        background: rgba(0, 0, 0, 0.95);
+        border: 1px solid #08f;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+        color: #fff;
+        font-family: monospace;
+    }
+
+    #aboutHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border-bottom: 1px solid #08f3;
+        position: sticky;
+        top: 0;
+        background: rgba(0, 0, 0, 0.98);
+        z-index: 1;
+    }
+
+    #aboutTitle {
+        font-weight: bold;
+        letter-spacing: 0.5px;
+    }
+
+    #aboutCloseBtn {
+        appearance: none;
+        border: 1px solid #08f;
+        background: rgba(8, 136, 255, 0.15);
+        color: #fff;
+        border-radius: 6px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-family: monospace;
+    }
+
+    #aboutCloseBtn:hover {
+        background: rgba(8, 136, 255, 0.3);
+    }
+
+    #aboutBody {
+        padding: 14px;
+        line-height: 1.45;
+        font-size: 13px;
+        white-space: pre-wrap;
     }
 </style>
 
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 
 <div class="menu-bar">
     <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
@@ -327,7 +528,7 @@
         </div>
     </div>
 
-    <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
+    <div class="menu-item dev-only" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
         <span>MIDI Settings</span>
         <div class="submenu">
             <button class="submenu-item" onclick="selectItem(this, 'midi')">
@@ -341,7 +542,7 @@
         </div>
     </div>
 
-    <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
+    <div class="menu-item dev-only" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
         <span>Hydra Background</span>
         <div class="submenu" data-group="background">
             <div class="switch-container" onclick="toggleHydra()">
@@ -398,10 +599,11 @@
                 <span>Frequency Bars</span>
             </button>
             <div class="submenu-separator"></div>
-            <div class="submenu-label">Gain <span id="gainValue">1.0x</span></div>
-            <div style="padding: 8px 20px;">
-                <input type="range" id="gainSlider" min="0.1" max="5" step="0.1" value="1"
-                    style="width: 100%; cursor: pointer;" oninput="setGain(this.value)">
+            <div class="submenu-label submenu-label-row"><span>Gain</span><span id="gainValue" class="value">1.0x</span>
+            </div>
+            <div class="submenu-control">
+                <input class="submenu-range" type="range" id="gainSlider" min="0.1" max="5" step="0.1" value="1"
+                    oninput="setGain(this.value)">
             </div>
         </div>
     </div>
@@ -415,17 +617,21 @@
             </div>
             <div class="submenu-separator"></div>
             <div class="submenu-label">Numbers</div>
-            <button class="submenu-item selected" onclick="setTextInputMode('pulse', this)">
+            <button class="submenu-item selected" data-mode="pulse" onclick="setTextInputMode('pulse', this)">
                 <span class="checkmark">✓</span>
                 <span>Pulse</span>
             </button>
-            <button class="submenu-item" onclick="setTextInputMode('zoom', this)">
+            <button class="submenu-item" data-mode="zoom" onclick="setTextInputMode('zoom', this)">
                 <span class="checkmark">✓</span>
                 <span>Zoom-in</span>
             </button>
-            <button class="submenu-item" onclick="setTextInputMode('row', this)">
+            <button class="submenu-item" data-mode="row" onclick="setTextInputMode('row', this)">
                 <span class="checkmark">✓</span>
                 <span>Row 1-8</span>
+            </button>
+            <button class="submenu-item" data-mode="row10" onclick="setTextInputMode('row10', this)">
+                <span class="checkmark">✓</span>
+                <span>Row 0-9</span>
             </button>
             <div class="submenu-separator"></div>
             <div class="submenu-label">String</div>
@@ -434,32 +640,85 @@
                 <span>Coming soon...</span>
             </button>
             <div class="submenu-separator"></div>
-            <div class="submenu-label">Word</div>
-            <button class="submenu-item disabled">
-                <span class="checkmark">✓</span>
-                <span>Coming soon...</span>
-            </button>
+            <div class="submenu-label">Words</div>
+            <div class="word-anim-group">
+                <button class="submenu-item" data-word-anim="pulse" onclick="setWordAnimMode('pulse', this)">
+                    <span class="checkmark">✓</span>
+                    <span>Pulse</span>
+                </button>
+                <button class="submenu-item" data-word-anim="zoom" onclick="setWordAnimMode('zoom', this)">
+                    <span class="checkmark">✓</span>
+                    <span>Zoom-in</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
+        <span>Text Style</span>
+        <div class="submenu" data-group="textStyle">
+            <div class="submenu-label">Font</div>
+            <div style="padding: 8px 20px;">
+                <select id="textFontSelect"
+                    style="width: 100%; cursor: pointer; background: #111; color: #fff; border: 1px solid #08f; padding: 6px; border-radius: 4px; font-family: monospace;">
+                    <option value="'Press Start 2P', monospace">Press Start 2P</option>
+                    <option value="'VT323', monospace">VT323</option>
+                    <option value="'Orbitron', system-ui, sans-serif">Orbitron</option>
+                    <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                    <option value="'Courier New', Courier, monospace">Courier</option>
+                    <option value="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">System
+                        (UI)</option>
+                    <option value="monospace">Monospace</option>
+                </select>
+            </div>
+            <div class="submenu-separator"></div>
+            <div class="submenu-label submenu-label-row"><span>Size</span><span id="textSizeValue"
+                    class="value">14</span></div>
+            <div class="submenu-control">
+                <input class="submenu-range" type="range" id="textSizeSlider" min="6" max="40" step="1" value="14">
+            </div>
+            <div class="submenu-separator"></div>
+            <div class="submenu-label">Colors</div>
+            <div
+                style="padding: 8px 20px; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;">
+                <span style="font-family: monospace; font-size: 13px;">Fill</span>
+                <input type="color" id="textFillColor" value="#0088ff" style="cursor: pointer;">
+                <span style="font-family: monospace; font-size: 13px;">Outline</span>
+                <input type="color" id="textOutlineColor" value="#000000" style="cursor: pointer;">
+            </div>
         </div>
     </div>
 
     <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
         <span>Text Effect</span>
         <div class="submenu" data-group="textEffect">
-            <button class="submenu-item" onclick="setTextEffect('glitch', this)">
+            <div class="switch-container" onclick="toggleVfx()">
+                <span>Enable VFX</span>
+                <div id="vfxSwitch" class="switch"></div>
+            </div>
+            <div class="submenu-separator"></div>
+            <button class="submenu-item" data-shader="glitch" onclick="setVfxShader('glitch', this)">
                 <span class="checkmark">✓</span>
                 <span>Glitch</span>
             </button>
-            <button class="submenu-item" onclick="setTextEffect('wave', this)">
+            <button class="submenu-item" data-shader="rgbShift" onclick="setVfxShader('rgbShift', this)">
                 <span class="checkmark">✓</span>
-                <span>Wave</span>
+                <span>RGB Shift</span>
             </button>
-            <button class="submenu-item" onclick="setTextEffect('fade', this)">
-                <span class="checkmark">✓</span>
-                <span>Fade</span>
-            </button>
-            <button class="submenu-item" onclick="setTextEffect('rainbow', this)">
+            <button class="submenu-item" data-shader="rainbow" onclick="setVfxShader('rainbow', this)">
                 <span class="checkmark">✓</span>
                 <span>Rainbow</span>
+            </button>
+            <div class="submenu-separator"></div>
+            <button class="submenu-item dev-only" data-shader="warpTransition"
+                onclick="setVfxShader('warpTransition', this)">
+                <span class="checkmark">✓</span>
+                <span>Warp Transition</span>
+            </button>
+            <button class="submenu-item dev-only" data-shader="pixelateTransition"
+                onclick="setVfxShader('pixelateTransition', this)">
+                <span class="checkmark">✓</span>
+                <span>Pixelate Transition</span>
             </button>
         </div>
     </div>
@@ -467,7 +726,7 @@
     <div class="menu-item" onmouseenter="showSubmenu(this)" onmouseleave="hideSubmenu(this)">
         <span>About</span>
         <div class="submenu">
-            <button class="submenu-item" onclick="showHelp()">
+            <button class="submenu-item dev-only" onclick="showHelp()">
                 <span>Help</span>
             </button>
             <button class="submenu-item" onclick="showVersion()">
@@ -477,16 +736,34 @@
     </div>
 </div>
 
-<div id="bigNum"></div>
-<div id="rowNums">
-    <span class="num">1</span>
-    <span class="num">2</span>
-    <span class="num">3</span>
-    <span class="num">4</span>
-    <span class="num">5</span>
-    <span class="num">6</span>
-    <span class="num">7</span>
-    <span class="num">8</span>
+<div id="textBackdrop"></div>
+<div id="textLayer">
+    <div id="vfxBox">
+        <div id="bigNum"></div>
+        <div id="wordText"></div>
+        <div id="rowNums">
+            <span class="num" data-digit="0">0</span>
+            <span class="num" data-digit="1">1</span>
+            <span class="num" data-digit="2">2</span>
+            <span class="num" data-digit="3">3</span>
+            <span class="num" data-digit="4">4</span>
+            <span class="num" data-digit="5">5</span>
+            <span class="num" data-digit="6">6</span>
+            <span class="num" data-digit="7">7</span>
+            <span class="num" data-digit="8">8</span>
+            <span class="num" data-digit="9">9</span>
+        </div>
+    </div>
+</div>
+
+<div id="aboutOverlay" aria-hidden="true">
+    <div id="aboutModal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+        <div id="aboutHeader">
+            <div id="aboutTitle">About</div>
+            <button id="aboutCloseBtn" type="button" onclick="closeAbout()">Close</button>
+        </div>
+        <div id="aboutBody"></div>
+    </div>
 </div>
 
 <canvas id="barsCanvas"></canvas>
@@ -494,8 +771,17 @@
 
 <script src="https://cdn.jsdelivr.net/npm/hydra-synth@1.3.29/dist/hydra-synth.js"></script>
 <script>
+    // Guard: some helpers reference textStyle (declared later). If called too early (e.g. during init),
+    // accessing textStyle would throw and stop the whole script (breaking Serial connect).
+    window.__textStyleReady = false;
+
     // Initialize Hydra after everything loads
     let hydra;
+
+    // IMPORTANT: declare these early. initScopeCanvases() runs before the Text/VFX section,
+    // and referencing a later `let textCanvas` would throw (temporal dead zone) and stop the script.
+    let textCanvas = null;
+    let textCanvasCtx = null;
 
     // Serial state
     let port, reader, inputDone;
@@ -531,6 +817,10 @@
         if (barsCanvas) {
             barsCanvas.width = window.innerWidth;
             barsCanvas.height = window.innerHeight;
+        }
+        // Keep VFX text canvas sized correctly too
+        if (textCanvas) {
+            renderTextCanvas();
         }
     }
     initScopeCanvases();
@@ -829,25 +1119,854 @@
     let currentPattern = 'pattern1';
 
     // Text Input state
-    let textDisplayEnabled = false;
-    let currentTextInputMode = 'pulse';
+    let textDisplayEnabled = localStorage.getItem('textDisplayEnabled') === '1';
+    let currentTextInputMode = localStorage.getItem('textInputMode') || 'pulse';
+    let wordAnimMode = localStorage.getItem('wordAnimMode') || 'pulse'; // 'pulse' | 'zoom'
     let bigText = '';
+    const backdropEl = document.getElementById('textBackdrop');
+    const vfxBoxEl = document.getElementById('vfxBox');
     const bigEl = document.getElementById('bigNum');
+    const wordEl = document.getElementById('wordText');
     const rowEl = document.getElementById('rowNums');
+
+    // Text canvas (used when VFX is enabled + pixel webfonts, to avoid fallback-font snapshots)
+    if (vfxBoxEl) {
+        textCanvas = document.createElement('canvas');
+        textCanvas.id = 'textCanvas';
+        textCanvas.style.position = 'absolute';
+        textCanvas.style.inset = '0';
+        textCanvas.style.width = '100%';
+        textCanvas.style.height = '100%';
+        textCanvas.style.display = 'none';
+        textCanvas.style.pointerEvents = 'none';
+        textCanvasCtx = textCanvas.getContext('2d');
+        vfxBoxEl.appendChild(textCanvas);
+    }
+
+    function initTextInputMenu() {
+        // Restore toggle state UI
+        const switchEl = document.getElementById('textDisplaySwitch');
+        if (switchEl) switchEl.classList.toggle('active', textDisplayEnabled);
+
+        // Restore selections (either/or): clear both mini-groups first
+        const textInputSubmenu = document.querySelector(`.submenu[data-group="textInput"]`);
+        if (textInputSubmenu) {
+            textInputSubmenu.querySelectorAll('.submenu-item[data-mode], .submenu-item[data-word-anim]').forEach(item => {
+                item.classList.remove('selected');
+            });
+        }
+
+        if (currentTextInputMode === 'word') {
+            // Word mode: select only the word effect button
+            const safeWordAnim = (wordAnimMode === 'zoom') ? 'zoom' : 'pulse';
+            wordAnimMode = safeWordAnim;
+            localStorage.setItem('wordAnimMode', wordAnimMode);
+            const wordBtn = document.querySelector(`.submenu[data-group="textInput"] .submenu-item[data-word-anim="${wordAnimMode}"]`);
+            if (wordBtn) wordBtn.classList.add('selected');
+        } else {
+            // Numbers modes: select only the matching number mode button (fallback to pulse)
+            const allowed = new Set(['pulse', 'zoom', 'row', 'row10']);
+            if (!allowed.has(currentTextInputMode)) currentTextInputMode = 'pulse';
+            localStorage.setItem('textInputMode', currentTextInputMode);
+            const btn = document.querySelector(`.submenu[data-group="textInput"] .submenu-item[data-mode="${currentTextInputMode}"]`);
+            if (btn) btn.classList.add('selected');
+        }
+
+        // Apply visibility according to restored settings
+        if (textDisplayEnabled) {
+            updateTextDisplayVisibility();
+        } else {
+            if (backdropEl) backdropEl.style.display = 'none';
+            if (vfxBoxEl) vfxBoxEl.style.display = 'none';
+            if (bigEl) bigEl.style.display = 'none';
+            if (wordEl) wordEl.style.display = 'none';
+            if (rowEl) rowEl.style.display = 'none';
+        }
+    }
+
+    // Text style state (persisted)
+    const textStyle = {
+        fontFamily: localStorage.getItem('textFontFamily') || "'Press Start 2P', monospace",
+        size: parseInt(localStorage.getItem('textSize') || '14', 10),
+        fillColor: localStorage.getItem('textFillColor') || '#0088ff',
+        outlineColor: localStorage.getItem('textOutlineColor') || '#000000',
+        outlineWidth: parseInt(localStorage.getItem('textOutlineWidth') || '3', 10)
+    };
+    window.__textStyleReady = true;
+
+    function normalizeHexColor(hex, fallback = '#ffffff') {
+        if (!hex) return fallback;
+        const s = String(hex).trim();
+        if (/^#[0-9a-fA-F]{6}$/.test(s)) return s;
+        if (/^#[0-9a-fA-F]{3}$/.test(s)) {
+            const r = s[1], g = s[2], b = s[3];
+            return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+        }
+        return fallback;
+    }
+
+    function hexToRgba(hex, alpha = 1) {
+        const h = normalizeHexColor(hex, '#ffffff');
+        const r = parseInt(h.slice(1, 3), 16);
+        const g = parseInt(h.slice(3, 5), 16);
+        const b = parseInt(h.slice(5, 7), 16);
+        const a = Math.max(0, Math.min(1, Number(alpha)));
+        return `rgba(${r}, ${g}, ${b}, ${a})`;
+    }
+
+    function getPrimaryFontFamily(fontFamilyCss) {
+        const css = String(fontFamilyCss || '').trim();
+        if (!css) return 'monospace';
+        // Take first family in the stack: "'Press Start 2P', monospace" -> "Press Start 2P"
+        const first = css.split(',')[0].trim();
+        const unquoted = first.replace(/^['"]|['"]$/g, '').trim();
+        return unquoted || 'monospace';
+    }
+
+    function cssQuoteFontFamily(name) {
+        const n = String(name || '').trim();
+        if (!n) return 'monospace';
+        // If it contains spaces/special chars, quote it for the CSS font string
+        if (/[^a-zA-Z0-9_-]/.test(n)) return `"${n.replace(/"/g, '\\"')}"`;
+        return n;
+    }
+
+    async function ensureFontLoaded(fontFamilyCss, timeoutMs = 2500) {
+        try {
+            if (!document.fonts) return;
+            const primaryName = getPrimaryFontFamily(fontFamilyCss);
+            const primaryCss = cssQuoteFontFamily(primaryName);
+            if (typeof document.fonts.load === 'function') {
+                // Try a couple sizes so the browser definitely fetches the face.
+                // IMPORTANT: use only the primary family; passing a full stack can be satisfied by fallback.
+                await document.fonts.load(`48px ${primaryCss}`);
+                await document.fonts.load(`96px ${primaryCss}`);
+            }
+
+            // Poll until the primary font is actually usable (prevents VFX snapshotting fallback font)
+            const start = performance.now();
+            while (typeof document.fonts.check === 'function') {
+                if (document.fonts.check(`24px ${primaryCss}`)) break;
+                if (performance.now() - start > timeoutMs) break;
+                await new Promise(r => setTimeout(r, 50));
+            }
+
+            if (document.fonts.ready) await document.fonts.ready;
+        } catch (e) { }
+    }
+
+    function usingTextCanvasForVfx() {
+        const family = textStyle?.fontFamily || '';
+        // Only needed for the two pixel webfonts that VFX snapshots as fallback fonts
+        return !!(vfxEnabled && /press.?start|vt323/i.test(family));
+    }
+
+    function getVfxRootElement() {
+        // When using the text canvas, VFX is attached to the canvas (not the DOM wrapper)
+        if (usingTextCanvasForVfx() && textCanvas) return textCanvas;
+        return vfxBoxEl;
+    }
+
+    function syncTextCanvasVisibility() {
+        if (!textCanvas) return;
+        const useCanvas = usingTextCanvasForVfx();
+        textCanvas.style.display = useCanvas ? 'block' : 'none';
+
+        // If using canvas, hide DOM text so VFX doesn't snapshot fallback fonts.
+        if (useCanvas) {
+            if (bigEl) bigEl.style.visibility = 'hidden';
+            if (wordEl) wordEl.style.visibility = 'hidden';
+            if (rowEl) rowEl.style.visibility = 'hidden';
+        } else {
+            if (bigEl) bigEl.style.visibility = '';
+            if (wordEl) wordEl.style.visibility = '';
+            if (rowEl) rowEl.style.visibility = '';
+        }
+    }
+
+    function renderTextCanvas() {
+        try {
+            if (!window.__textStyleReady) return;
+            if (!textCanvas || !textCanvasCtx) return;
+            if (!textDisplayEnabled) return;
+            if (!usingTextCanvasForVfx()) return;
+
+            const dpr = Math.min(2, window.devicePixelRatio || 1);
+            const w = Math.max(1, Math.floor(window.innerWidth));
+            const h = Math.max(1, Math.floor(window.innerHeight));
+            const cw = Math.floor(w * dpr);
+            const ch = Math.floor(h * dpr);
+            if (textCanvas.width !== cw || textCanvas.height !== ch) {
+                textCanvas.width = cw;
+                textCanvas.height = ch;
+            }
+
+            const ctx = textCanvasCtx;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+
+            const fill = normalizeHexColor(textStyle.fillColor, '#0088ff');
+            const outline = normalizeHexColor(textStyle.outlineColor, '#000000');
+            const outlineW = Math.max(0, Math.min(12, Number(textStyle.outlineWidth) || 3));
+            const familyCss = textStyle.fontFamily || "monospace";
+
+            const base = Math.max(6, Math.min(40, Number(textStyle.size) || 14));
+            const minDim = Math.min(w, h);
+            const fontPx = Math.max(10, Math.round((base / 100) * minDim));
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = fill;
+            ctx.strokeStyle = outline;
+            ctx.lineJoin = 'miter';
+            ctx.miterLimit = 2;
+            ctx.lineWidth = Math.max(4, outlineW * 2);
+
+            const isRowMode = currentTextInputMode === 'row' || currentTextInputMode === 'row10';
+            if (isRowMode) {
+                const num = parseFloat(String(bigText));
+                const n = isNaN(num) ? -1 : Math.round(num);
+                const cellFontPx = Math.max(10, Math.round(fontPx * 0.6));
+                ctx.font = `${cellFontPx}px ${familyCss}`;
+                const left = w * 0.06;
+                const right = w * 0.94;
+                const y = h * 0.5;
+                // Optional pop/zoom animation for the active digit (used when VFX is on)
+                let popScale = 1;
+                try {
+                    if (typeof rowCanvasPopDigit !== 'undefined' && rowCanvasPopDigit === n && rowCanvasPopStart > 0) {
+                        const dt = performance.now() - rowCanvasPopStart;
+                        const dur = rowCanvasPopDurationMs;
+                        if (dt >= 0 && dt <= dur) {
+                            const t = dt / dur;
+                            // easeOutCubic
+                            const eased = 1 - Math.pow(1 - t, 3);
+                            popScale = 1 + (rowCanvasPopMaxScale - 1) * (1 - eased);
+                        }
+                    }
+                } catch (e) { }
+                if (currentTextInputMode === 'row10') {
+                    for (let i = 0; i <= 9; i++) {
+                        const x = left + ((right - left) * (i - 0)) / 9;
+                        if (i === n && popScale !== 1) {
+                            ctx.save();
+                            ctx.translate(x, y);
+                            ctx.scale(popScale, popScale);
+                            ctx.strokeText(String(i), 0, 0);
+                            ctx.fillText(String(i), 0, 0);
+                            ctx.restore();
+                        } else {
+                            ctx.strokeText(String(i), x, y);
+                            if (i === n) ctx.fillText(String(i), x, y);
+                        }
+                    }
+                } else {
+                    for (let i = 1; i <= 8; i++) {
+                        const x = left + ((right - left) * (i - 1)) / 7;
+                        if (i === n && popScale !== 1) {
+                            ctx.save();
+                            ctx.translate(x, y);
+                            ctx.scale(popScale, popScale);
+                            ctx.strokeText(String(i), 0, 0);
+                            ctx.fillText(String(i), 0, 0);
+                            ctx.restore();
+                        } else {
+                            ctx.strokeText(String(i), x, y);
+                            if (i === n) ctx.fillText(String(i), x, y);
+                        }
+                    }
+                }
+                return;
+            }
+
+            const text = String(bigText || '');
+            if (!text) return;
+            ctx.font = `${fontPx}px ${familyCss}`;
+            const x = w * 0.5;
+            const y = h * 0.5;
+            ctx.strokeText(text, x, y);
+            ctx.fillText(text, x, y);
+        } catch (e) { }
+    }
+
+    // Row pop animation (canvas mode only, so VFX shows the zoom)
+    let rowCanvasPopToken = 0;
+    let rowCanvasPopStart = 0;
+    let rowCanvasPopDigit = -1;
+    const rowCanvasPopDurationMs = 140; // short pop
+    const rowCanvasPopMaxScale = 1.8;
+
+    function startRowCanvasPop(digit) {
+        if (!usingTextCanvasForVfx()) return;
+        if (typeof digit !== 'number' || !isFinite(digit)) return;
+        rowCanvasPopDigit = digit;
+        rowCanvasPopStart = performance.now();
+        const token = ++rowCanvasPopToken;
+
+        function tick() {
+            if (token !== rowCanvasPopToken) return;
+            if (!vfxEnabled || !usingTextCanvasForVfx()) return;
+            const dt = performance.now() - rowCanvasPopStart;
+            // Keep re-rendering and re-snapshotting for the pop duration
+            renderTextCanvas();
+            try { vfxUpdateElement(textCanvas); } catch (e) { }
+            if (dt < rowCanvasPopDurationMs) {
+                requestAnimationFrame(tick);
+            }
+        }
+
+        requestAnimationFrame(tick);
+    }
+
+    // When VFX is applied to the DOM wrapper (not canvas), the row zoom animation happens in CSS.
+    // To make that zoom visible inside VFX, we must refresh the snapshot for a short time window.
+    let rowVfxPopToken = 0;
+    function startRowVfxPop(rootEl, durationMs = 180) {
+        if (!vfxEnabled) return;
+        if (!rootEl) return;
+        if (rootEl === textCanvas) return; // canvas mode handled elsewhere
+        const token = ++rowVfxPopToken;
+        const start = performance.now();
+
+        function tick() {
+            if (token !== rowVfxPopToken) return;
+            if (!vfxEnabled) return;
+            const dt = performance.now() - start;
+            try { vfxUpdateElement(rootEl); } catch (e) { }
+            if (dt < durationMs) requestAnimationFrame(tick);
+        }
+
+        requestAnimationFrame(tick);
+    }
+
+    function applyTextStyle() {
+        const size = Math.max(6, Math.min(40, Number(textStyle.size) || 14));
+        const fill = normalizeHexColor(textStyle.fillColor, '#0088ff');
+        const outline = normalizeHexColor(textStyle.outlineColor, '#000000');
+        const outlineW = Math.max(0, Math.min(12, Number(textStyle.outlineWidth) || 3));
+        const family = textStyle.fontFamily || "monospace";
+        const vfxOn = (typeof vfxEnabled !== 'undefined') && vfxEnabled === true;
+        const vfxNoStroke = vfxOn && (vfxShader === 'glitch' || vfxShader === 'rgbShift' || vfxShader === 'rgbGlitch');
+        // Pixel fonts (Press Start 2P, VT323) look ugly with stroke — use 8-direction shadow instead
+        const isPixelFont = /press.?start|vt323/i.test(family);
+        const effectiveOutlineW = vfxNoStroke ? 0 : outlineW;
+        // 8-direction shadow for clean pixel font outline (using outline color)
+        const px = Math.max(4, outlineW * 2); // double the outline width for visible thickness
+        const pixelOutlineShadow = `
+            ${px}px 0 0 ${outline},
+            -${px}px 0 0 ${outline},
+            0 ${px}px 0 ${outline},
+            0 -${px}px 0 ${outline},
+            ${px}px ${px}px 0 ${outline},
+            -${px}px ${px}px 0 ${outline},
+            ${px}px -${px}px 0 ${outline},
+            -${px}px -${px}px 0 ${outline}
+        `;
+        // When VFX is enabled, pixel-font shadow outlines often rasterize badly in the snapshot,
+        // producing "broken" VFX. In that case, prefer clean fill (no outline) for those fonts.
+        const disablePixelOutlineForVfx = vfxOn && isPixelFont;
+
+        // Big number
+        if (bigEl) {
+            bigEl.style.fontFamily = family;
+            bigEl.style.color = fill;
+            if (isPixelFont && !disablePixelOutlineForVfx) {
+                bigEl.style.webkitTextStroke = '0';
+                bigEl.style.textShadow = pixelOutlineShadow;
+            } else {
+                bigEl.style.webkitTextStroke = `${effectiveOutlineW}px ${outline}`;
+                bigEl.style.textShadow = 'none';
+            }
+            bigEl.style.fontSize = `min(${size}vh, ${size}vw)`;
+        }
+
+        // Word
+        if (wordEl) {
+            wordEl.style.fontFamily = family;
+            wordEl.style.color = fill;
+            if (isPixelFont && !disablePixelOutlineForVfx) {
+                wordEl.style.webkitTextStroke = '0';
+                wordEl.style.textShadow = pixelOutlineShadow;
+            } else {
+                wordEl.style.webkitTextStroke = `${effectiveOutlineW}px ${outline}`;
+                wordEl.style.textShadow = 'none';
+            }
+            wordEl.style.fontSize = `min(${size}vh, ${size}vw)`;
+        }
+
+        // Row
+        if (rowEl) {
+            const children = rowEl.querySelectorAll('.num');
+            children.forEach((el) => {
+                el.style.fontFamily = family;
+                if (isPixelFont && !disablePixelOutlineForVfx) {
+                    el.style.webkitTextStroke = '0';
+                    el.style.textShadow = pixelOutlineShadow;
+                } else {
+                    el.style.webkitTextStroke = `2px ${outline}`;
+                    el.style.textShadow = 'none';
+                }
+                el.style.color = el.classList.contains('active') ? fill : 'transparent';
+                const rowScale = (currentTextInputMode === 'row10') ? 0.52 : 0.6;
+                el.style.fontSize = `min(${Math.max(6, Math.round(size * rowScale))}vh, ${Math.max(6, Math.round(size * rowScale))}vw)`;
+            });
+        }
+
+        // If VFX is enabled and we use the text canvas, keep it in sync
+        syncTextCanvasVisibility();
+        renderTextCanvas();
+
+        // UI
+        const sizeVal = document.getElementById('textSizeValue');
+        if (sizeVal) sizeVal.textContent = String(size);
+
+        // If VFX is enabled, style changes (especially size slider) can create "phantom" layers
+        // because VFX overlays are re-snapshotted while the DOM is mid-update.
+        // Solution: debounce VFX re-attach; temporarily clear VFX during rapid changes.
+        if (typeof vfxEnabled !== 'undefined' && vfxEnabled) {
+            window.__vfxStyleToken = (window.__vfxStyleToken || 0) + 1;
+            const token = window.__vfxStyleToken;
+            if (window.__vfxStyleTimer) clearTimeout(window.__vfxStyleTimer);
+
+            try { clearVfx(); } catch (e) { }
+            try { cleanupVfxArtifacts(); } catch (e) { }
+
+            window.__vfxStyleTimer = setTimeout(async () => {
+                if (token !== window.__vfxStyleToken) return;
+                try { await applyVfx(); } catch (e) { }
+                try { getVfxTargets().forEach(vfxUpdateElement); } catch (e) { }
+            }, 120);
+        }
+    }
+
+    function initTextStyleMenu() {
+        const fontSel = document.getElementById('textFontSelect');
+        const sizeSlider = document.getElementById('textSizeSlider');
+        const fillPicker = document.getElementById('textFillColor');
+        const outlinePicker = document.getElementById('textOutlineColor');
+
+        if (fontSel) fontSel.value = textStyle.fontFamily;
+        if (sizeSlider) sizeSlider.value = String(textStyle.size);
+        if (fillPicker) fillPicker.value = normalizeHexColor(textStyle.fillColor, '#0088ff');
+        if (outlinePicker) outlinePicker.value = normalizeHexColor(textStyle.outlineColor, '#000000');
+
+        if (fontSel) {
+            fontSel.addEventListener('change', async () => {
+                textStyle.fontFamily = fontSel.value;
+                localStorage.setItem('textFontFamily', textStyle.fontFamily);
+                applyTextStyle();
+                // VT323 (webfont) can load after VFX measured bounds -> looks off-center/cropped.
+                // Ensure the font is loaded, then re-apply VFX with correct metrics.
+                await ensureFontLoaded(textStyle.fontFamily);
+                applyTextStyle();
+                if (typeof vfxEnabled !== 'undefined' && vfxEnabled) {
+                    try { await applyVfx(); } catch (e) { }
+                    try { vfxOnTextChange(getVfxRootElement()); } catch (e) { }
+                }
+            });
+        }
+        if (sizeSlider) {
+            sizeSlider.addEventListener('input', () => {
+                textStyle.size = parseInt(sizeSlider.value, 10);
+                localStorage.setItem('textSize', String(textStyle.size));
+                applyTextStyle();
+            });
+        }
+        if (fillPicker) {
+            fillPicker.addEventListener('input', () => {
+                textStyle.fillColor = normalizeHexColor(fillPicker.value, '#0088ff');
+                localStorage.setItem('textFillColor', textStyle.fillColor);
+                applyTextStyle();
+            });
+        }
+        if (outlinePicker) {
+            outlinePicker.addEventListener('input', () => {
+                textStyle.outlineColor = normalizeHexColor(outlinePicker.value, '#000000');
+                localStorage.setItem('textOutlineColor', textStyle.outlineColor);
+                applyTextStyle();
+            });
+        }
+
+        applyTextStyle();
+    }
+
+    // VFX-JS (text effects)
+    let vfxEnabled = localStorage.getItem('vfxEnabled') === '1';
+    let vfxShader = localStorage.getItem('vfxShader') || 'glitch';
+    let vfxProgress = 1;
+    let vfx = null;
+    let vfxImportPromise = null;
+    let vfxTransitionToken = 0;
+    let vfxApplyToken = 0;
+    let vfxApplyRunId = 0; // prevents async apply() race/stacking
+    const vfxBounds = new WeakMap();
+
+    async function ensureVfx() {
+        if (vfx) return vfx;
+        if (!vfxImportPromise) {
+            vfxImportPromise = import('https://esm.sh/@vfx-js/core');
+        }
+        const mod = await vfxImportPromise;
+        // Use a fixed canvas to avoid scroll/layout offset drift (keeps effect centered)
+        // and disable scrollPadding since this app is fullscreen/fixed-position.
+        vfx = new mod.VFX({
+            fixedCanvas: true,
+            scrollPadding: false,
+            // Keep pixel ratio reasonable to reduce rounding/offset artifacts
+            pixelRatio: Math.min(2, (window.devicePixelRatio || 1)),
+        });
+        return vfx;
+    }
+
+    function getAllVfxTargets() {
+        // Apply VFX to a stable wrapper to prevent cropping and preserve alpha
+        // For pixel webfonts, apply VFX to the pre-rendered canvas so the correct font is baked.
+        if (usingTextCanvasForVfx() && textCanvas) return [textCanvas];
+        return [vfxBoxEl].filter(Boolean);
+    }
+
+    function getVfxTargets() {
+        // Avoid attaching VFX to hidden elements (can cause wrong bounds / misplacement)
+        return getAllVfxTargets().filter((el) => el.style.display !== 'none');
+    }
+
+    async function clearVfx() {
+        if (!vfx) return;
+        // IMPORTANT: remove from ALL targets (even hidden) so opacity/visibility are restored
+        const targets = getAllVfxTargets();
+        targets.forEach((el) => {
+            try { vfx.remove(el); } catch (e) { }
+            // Extra safety: restore element visibility in case remove doesn't
+            try { el.style.opacity = ''; } catch (e) { }
+            try { el.style.visibility = ''; } catch (e) { }
+            try { el.style.filter = ''; } catch (e) { }
+            try { el.style.transform = ''; } catch (e) { }
+        });
+    }
+
+    // Some VFX implementations may leave extra overlay nodes behind.
+    // We attach VFX only to #vfxBox, so it's safe to remove any extra children it injected.
+    function cleanupVfxArtifacts() {
+        try {
+            if (!vfxBoxEl) return;
+            const keepIds = new Set(['bigNum', 'wordText', 'rowNums', 'textCanvas']);
+            Array.from(vfxBoxEl.children).forEach((child) => {
+                try {
+                    const id = child && child.id ? child.id : '';
+                    if (!keepIds.has(id)) child.remove();
+                } catch (e) { }
+            });
+        } catch (e) { }
+    }
+
+    // Strong cleanup: rebuild the VFX container so no stale overlay nodes remain.
+    // This prevents "phantom" layers when changing font/size/colors while VFX is enabled.
+    function resetVfxBoxContents() {
+        try {
+            if (!vfxBoxEl) return;
+            const keep = [bigEl, wordEl, rowEl, textCanvas].filter(Boolean);
+            const keepState = keep.map((el) => ({ el, display: el.style.display }));
+
+            // Detach kept nodes, wipe container, then re-attach.
+            keepState.forEach(({ el }) => {
+                try { if (el.parentElement === vfxBoxEl) vfxBoxEl.removeChild(el); } catch (e) { }
+            });
+            vfxBoxEl.textContent = '';
+            keepState.forEach(({ el, display }) => {
+                try {
+                    vfxBoxEl.appendChild(el);
+                    el.style.display = display;
+                } catch (e) { }
+            });
+        } catch (e) { }
+    }
+
+    async function applyVfx() {
+        const runId = ++vfxApplyRunId;
+        if (!vfxEnabled) {
+            await clearVfx();
+            return;
+        }
+
+        try {
+            // Ensure the active font is loaded BEFORE VFX snapshots the element.
+            // Otherwise the VFX layer can "bake" a fallback font and look wrong (esp. Press Start 2P / VT323).
+            try { await ensureFontLoaded(textStyle?.fontFamily); } catch (e) { }
+            // Give the browser a beat to paint the newly loaded font before snapshotting.
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+
+            const inst = await ensureVfx();
+            if (runId !== vfxApplyRunId) return; // a newer apply started
+
+            // If we are in pixel-font mode, render the canvas BEFORE attaching VFX.
+            syncTextCanvasVisibility();
+            renderTextCanvas();
+
+            // Remove any leftover overlay nodes from previous runs (prevents "ghost layers")
+            cleanupVfxArtifacts();
+            try {
+                if (vfxBoxEl) {
+                    vfxBoxEl.querySelectorAll('canvas, svg, video').forEach((n) => {
+                        // VFX implementations often inject these; remove before re-adding
+                        try { n.remove(); } catch (e) { }
+                    });
+                }
+            } catch (e) { }
+
+            // Always remove from all targets first (restores styles)
+            getAllVfxTargets().forEach((el) => {
+                try { inst.remove(el); } catch (e) { }
+                try { el.style.opacity = ''; } catch (e) { }
+                try { el.style.visibility = ''; } catch (e) { }
+            });
+
+            // Some implementations leave overlays behind even after remove()
+            cleanupVfxArtifacts();
+            try {
+                if (vfxBoxEl) {
+                    vfxBoxEl.querySelectorAll('canvas, svg, video').forEach((n) => {
+                        try { n.remove(); } catch (e) { }
+                    });
+                }
+            } catch (e) { }
+
+            // Rebuild the container to guarantee no stale nodes survive.
+            resetVfxBoxContents();
+
+            const targets = getVfxTargets();
+            const isTransition = /Transition$/.test(vfxShader);
+            // Give glitch/shift more breathing room to avoid cropping at edges
+            const overflowPx = isTransition
+                ? 120
+                : (vfxShader === 'glitch' || vfxShader === 'rgbShift' || vfxShader === 'rgbGlitch'
+                    ? 520
+                    : 260);
+            const options = { shader: vfxShader, overflow: overflowPx };
+            if (isTransition) {
+                options.uniforms = { progress: () => vfxProgress };
+            }
+
+            if (runId !== vfxApplyRunId) return; // prevent late re-add
+            targets.forEach((el) => {
+                try { inst.add(el, options); } catch (e) { console.warn('VFX add error:', e); }
+            });
+
+            // Ensure any VFX-added layers never capture mouse events (sliders/toggles must stay usable)
+            try {
+                if (vfxBoxEl) {
+                    vfxBoxEl.querySelectorAll('canvas, svg, video').forEach((n) => {
+                        try { n.style.pointerEvents = 'none'; } catch (e) { }
+                    });
+                }
+            } catch (e) { }
+
+            // Force a fresh snapshot now that the font is loaded and VFX is attached.
+            try { getVfxTargets().forEach(vfxUpdateElement); } catch (e) { }
+        } catch (e) {
+            console.warn('VFX init/apply error:', e);
+        }
+    }
+
+    // If available, tell VFX to refresh the element snapshot
+    function vfxUpdateElement(el) {
+        if (!vfxEnabled) return;
+        if (!vfx) return;
+        if (!el) return;
+        try {
+            if (typeof vfx.update === 'function') vfx.update(el);
+        } catch (e) { }
+    }
+
+    function vfxIsTransitionShader() {
+        return vfxEnabled && /Transition$/.test(vfxShader);
+    }
+
+    function vfxNeedsReattach(el) {
+        try {
+            const r = el.getBoundingClientRect();
+            const next = { w: Math.ceil(r.width), h: Math.ceil(r.height) };
+            const prev = vfxBounds.get(el);
+            vfxBounds.set(el, next);
+            if (!prev) return true;
+            return prev.w !== next.w || prev.h !== next.h;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    // Ensure transitions fire on every text update:
+    // re-attach the shader (fresh snapshot), then animate progress.
+    function vfxOnTextChange(el) {
+        if (!vfxEnabled) return;
+        if (!el) return;
+
+        const isTransition = vfxIsTransitionShader();
+
+        // Transition shaders need a fresh "from" state each time the text changes,
+        // otherwise they often only animate once (e.g., only when selected in the menu).
+        if (isTransition) {
+            const token = ++vfxApplyToken;
+            Promise.resolve(applyVfx()).then(() => {
+                if (token !== vfxApplyToken) return;
+                vfxUpdateElement(el);
+                triggerVfxTransition();
+            });
+            return;
+        }
+
+        // Non-transition shaders: re-attach only if bounds changed; otherwise update snapshot.
+        const mustReattach = vfxNeedsReattach(el);
+        if (mustReattach) {
+            const token = ++vfxApplyToken;
+            Promise.resolve(applyVfx()).then(() => {
+                if (token !== vfxApplyToken) return;
+                vfxUpdateElement(el);
+            });
+            return;
+        }
+
+        vfxUpdateElement(el);
+    }
+
+    function triggerVfxTransition() {
+        if (!vfxEnabled) return;
+        if (!/Transition$/.test(vfxShader)) return;
+
+        // Cancel any in-flight transition and restart
+        const token = ++vfxTransitionToken;
+        const targets = getVfxTargets();
+
+        // Make transitions effectively instant.
+        // Reason: the underlying VFX engine redraw is tied to vfx.update() (snapshot),
+        // and doing that every frame makes it *feel* like ~1s even with tiny durationMs.
+        vfxProgress = 0;
+        targets.forEach(vfxUpdateElement);
+
+        requestAnimationFrame(() => {
+            if (token !== vfxTransitionToken) return;
+            vfxProgress = 1;
+            targets.forEach(vfxUpdateElement);
+        });
+    }
+
+    async function toggleVfx() {
+        const switchEl = document.getElementById('vfxSwitch');
+        vfxEnabled = !vfxEnabled;
+        localStorage.setItem('vfxEnabled', vfxEnabled ? '1' : '0');
+        if (switchEl) switchEl.classList.toggle('active', vfxEnabled);
+        // Apply after toggle (best-effort).
+        // When disabling, do a hard stop and cleanup to avoid "stuck" overlays.
+        if (!vfxEnabled) {
+            vfxApplyToken++;
+            vfxApplyRunId++;
+            vfxTransitionToken++;
+            await clearVfx();
+            cleanupVfxArtifacts();
+            syncTextCanvasVisibility();
+            return;
+        }
+        applyVfx();
+        syncTextCanvasVisibility();
+    }
+
+    function setVfxShader(shader, button) {
+        vfxShader = shader;
+        localStorage.setItem('vfxShader', vfxShader);
+        if (button) selectItemInGroup(button, 'textEffect');
+        // Re-apply effect to current visible text
+        applyVfx();
+        triggerVfxTransition();
+    }
+
+    // Back-compat (if anything calls the old function name)
+    function setTextEffect(name, button) {
+        // Map legacy names to VFX presets where possible
+        const map = {
+            glitch: 'glitch',
+            rainbow: 'rainbow',
+            wave: 'sinewave',
+            fade: 'blink'
+        };
+        setVfxShader(map[name] || name, button);
+    }
+
+    function initTextEffectMenu() {
+        const switchEl = document.getElementById('vfxSwitch');
+        if (switchEl) switchEl.classList.toggle('active', vfxEnabled);
+
+        // Restore selection highlight
+        const btn = document.querySelector(`.submenu[data-group="textEffect"] .submenu-item[data-shader="${vfxShader}"]`);
+        if (btn) selectItemInGroup(btn, 'textEffect');
+
+        // Apply if enabled (best-effort)
+        if (vfxEnabled) applyVfx();
+    }
 
     function setBigText(txt) {
         bigText = String(txt);
         const num = parseFloat(bigText);
-        const isRowMode = currentTextInputMode === 'row';
+        const isRowMode = currentTextInputMode === 'row' || currentTextInputMode === 'row10';
+        const isWordMode = currentTextInputMode === 'word';
+
+        // Keep canvas renderer in sync (when VFX uses the canvas target)
+        if (usingTextCanvasForVfx()) {
+            syncTextCanvasVisibility();
+            renderTextCanvas();
+        }
+
+        // Word mode: show centered word (string)
+        if (isWordMode) {
+            if (rowEl) rowEl.style.display = 'none';
+            if (bigEl) bigEl.style.display = 'none';
+            if (wordEl) {
+                wordEl.style.display = 'block';
+                wordEl.textContent = bigText;
+                wordEl.classList.remove('pulseOnce', 'zoomOnce', 'wordPulseZoomOnce', 'wordPulseOnce');
+                void wordEl.offsetWidth;
+                // Word mode effect (two modes)
+                if (wordAnimMode === 'zoom') {
+                    wordEl.classList.add('zoomOnce');
+                } else {
+                    wordEl.classList.add('wordPulseOnce');
+                }
+                const vfxRoot = getVfxRootElement();
+                if (vfxRoot === textCanvas) {
+                    // Canvas mode has no DOM animation to wait for
+                    renderTextCanvas();
+                    vfxUpdateElement(textCanvas);
+                    vfxOnTextChange(textCanvas);
+                } else {
+                    // Delay VFX update until after animation (pulse/zoom)
+                    setTimeout(() => {
+                        vfxUpdateElement(wordEl);
+                        vfxOnTextChange(vfxRoot);
+                    }, 160);
+                }
+            }
+            console.log('WORD mode - text:', bigText);
+            return;
+        }
 
         // In row mode: hide bigNum, show row with zoom-pop on active
         if (isRowMode) {
             if (bigEl) bigEl.style.display = 'none';
+            if (wordEl) wordEl.style.display = 'none';
             if (rowEl && !isNaN(num)) {
                 const n = Math.round(num);
                 const children = rowEl.querySelectorAll('.num');
                 children.forEach((el, idx) => {
-                    const isActive = (idx + 1) === n;
+                    const digitAttr = el.getAttribute('data-digit');
+                    const digit = digitAttr !== null ? parseInt(digitAttr, 10) : (idx + 1);
+                    const isActive = digit === n;
+
+                    // Row 1-8: hide digits 0 and 9 to keep the classic look
+                    if (currentTextInputMode === 'row') {
+                        el.style.display = (digit === 0 || digit === 9) ? 'none' : '';
+                    } else {
+                        el.style.display = '';
+                    }
+
                     if (isActive) {
                         // Always restart animation (even if same number repeats)
                         el.classList.remove('active');
@@ -856,7 +1975,21 @@
                     } else {
                         el.classList.remove('active');
                     }
+                    // Apply current fill to the active cell (and hide others)
+                    const fill = normalizeHexColor(textStyle.fillColor, '#0088ff');
+                    el.style.color = isActive ? fill : 'transparent';
                 });
+                const vfxRoot = getVfxRootElement();
+                if (vfxRoot === textCanvas) {
+                    renderTextCanvas();
+                    vfxUpdateElement(textCanvas);
+                    vfxOnTextChange(textCanvas);
+                    startRowCanvasPop(n);
+                } else {
+                    // Start VFX updates immediately and keep them running briefly so the CSS zoom is captured.
+                    try { vfxOnTextChange(vfxRoot); } catch (e) { }
+                    startRowVfxPop(vfxRoot, 220);
+                }
             }
             console.log('ROW mode - active:', Math.round(num));
             return;
@@ -865,6 +1998,7 @@
         // Non-row modes: show bigNum with effects
         if (bigEl) {
             bigEl.style.display = 'block';
+            if (wordEl) wordEl.style.display = 'none';
             bigEl.textContent = bigText;
             bigEl.classList.remove('pulseOnce', 'zoomOnce');
             void bigEl.offsetWidth; // Force reflow
@@ -873,6 +2007,18 @@
             } else {
                 bigEl.classList.add('pulseOnce');
             }
+            const vfxRoot = getVfxRootElement();
+            if (vfxRoot === textCanvas) {
+                renderTextCanvas();
+                vfxUpdateElement(textCanvas);
+                vfxOnTextChange(textCanvas);
+            } else {
+                // Delay VFX update until after animation (150ms)
+                setTimeout(() => {
+                    vfxUpdateElement(bigEl);
+                    vfxOnTextChange(vfxRoot);
+                }, 160);
+            }
         }
         console.log('BIG text set to:', bigText, 'mode:', currentTextInputMode);
     }
@@ -880,13 +2026,17 @@
     function toggleTextDisplay() {
         const switchEl = document.getElementById('textDisplaySwitch');
         textDisplayEnabled = !textDisplayEnabled;
+        localStorage.setItem('textDisplayEnabled', textDisplayEnabled ? '1' : '0');
 
         if (textDisplayEnabled) {
             switchEl.classList.add('active');
             updateTextDisplayVisibility();
         } else {
             switchEl.classList.remove('active');
+            if (backdropEl) backdropEl.style.display = 'none';
+            if (vfxBoxEl) vfxBoxEl.style.display = 'none';
             if (bigEl) bigEl.style.display = 'none';
+            if (wordEl) wordEl.style.display = 'none';
             if (rowEl) rowEl.style.display = 'none';
         }
     }
@@ -894,23 +2044,76 @@
     function updateTextDisplayVisibility() {
         if (!textDisplayEnabled) return;
 
-        if (currentTextInputMode === 'row') {
+        if (backdropEl) backdropEl.style.display = 'block';
+        if (vfxBoxEl) vfxBoxEl.style.display = 'flex';
+
+        if (currentTextInputMode === 'word') {
+            if (wordEl) wordEl.style.display = 'block';
+            if (rowEl) rowEl.style.display = 'none';
+            if (bigEl) bigEl.style.display = 'none';
+        } else if (currentTextInputMode === 'row' || currentTextInputMode === 'row10') {
             if (rowEl) rowEl.style.display = 'flex';
+            if (wordEl) wordEl.style.display = 'none';
             if (bigEl) bigEl.style.display = 'none';
         } else {
             if (rowEl) rowEl.style.display = 'none';
+            if (wordEl) wordEl.style.display = 'none';
             if (bigEl) bigEl.style.display = 'block';
         }
+
+        // Ensure VFX is applied after visibility changes (display:none -> block)
+        if (vfxEnabled) applyVfx();
     }
 
     function setTextInputMode(mode, button) {
         console.log("Text input mode:", mode);
         selectItemInGroup(button, 'textInput');
         currentTextInputMode = mode;
+        localStorage.setItem('textInputMode', currentTextInputMode);
+
+        // Either/or ticks: if a Numbers mode is selected, clear Words ticks
+        if (button) {
+            const submenu = button.closest('.submenu');
+            if (submenu) {
+                submenu.querySelectorAll('.submenu-item[data-word-anim]').forEach(item => item.classList.remove('selected'));
+            }
+        }
 
         if (textDisplayEnabled) {
             updateTextDisplayVisibility();
             // Re-apply current value for new effect
+            if (bigText) setBigText(bigText);
+        }
+    }
+
+    function setWordAnimMode(mode, button) {
+        wordAnimMode = (mode === 'zoom') ? 'zoom' : 'pulse';
+        localStorage.setItem('wordAnimMode', wordAnimMode);
+
+        // Selecting a word animation implies switching to Word display mode
+        currentTextInputMode = 'word';
+        localStorage.setItem('textInputMode', currentTextInputMode);
+
+        // Either/or ticks: if Words is selected, clear Numbers ticks
+        if (button) {
+            const submenu = button.closest('.submenu');
+            if (submenu) {
+                submenu.querySelectorAll('.submenu-item[data-mode]').forEach(item => item.classList.remove('selected'));
+            }
+        }
+
+        // Update selection styling for Words
+        if (button) {
+            const container = button.closest('.word-anim-group');
+            if (container) {
+                container.querySelectorAll('.submenu-item').forEach(item => item.classList.remove('selected'));
+            }
+            button.classList.add('selected');
+        }
+
+        // Apply visibility + re-apply current word if visible
+        if (textDisplayEnabled) {
+            updateTextDisplayVisibility();
             if (bigText) setBigText(bigText);
         }
     }
@@ -949,13 +2152,20 @@
     }
 
     function selectItemInGroup(button, group) {
-        // Remove selected class from all items in the same group
+        // Remove selected class from items in the same "mini-group".
+        // This submenu contains multiple independent groups (ex: Text Input mode + Word Effect),
+        // so we scope selection by the button's data-* attribute when possible.
         const submenu = button.closest('.submenu');
-        submenu.querySelectorAll('.submenu-item').forEach(item => {
-            item.classList.remove('selected');
-        });
-        // Add selected class to clicked item
+        if (!submenu) return;
+
+        let selector = '.submenu-item';
+        if (button.hasAttribute('data-mode')) selector = '.submenu-item[data-mode]';
+        else if (button.hasAttribute('data-word-anim')) selector = '.submenu-item[data-word-anim]';
+        else if (button.hasAttribute('data-shader')) selector = '.submenu-item[data-shader]';
+
+        submenu.querySelectorAll(selector).forEach(item => item.classList.remove('selected'));
         button.classList.add('selected');
+
         selectedItems[group] = button;
     }
 
@@ -1060,26 +2270,35 @@
                     break;
                 }
                 if (value) {
-                    bytesReceived += value.length;
-                    console.log('RX:', value, '| Total bytes:', bytesReceived);
+                    const chunk = String(value);
+                    bytesReceived += chunk.length;
+                    console.log('RX chunk:', chunk, '| Total chars:', bytesReceived);
 
-                    // Process incoming data
-                    for (let i = 0; i < value.length; i++) {
-                        const ch = value[i];
-                        if (ch === '\n' || ch === '\r') {
-                            if (currentLine.length > 0) {
-                                processSerialLine(currentLine);
-                                currentLine = '';
-                            }
-                        } else {
-                            currentLine += ch;
+                    if (!textDisplayEnabled) continue;
+
+                    if (currentTextInputMode === 'word') {
+                        // Word mode: split on spaces/tabs/newlines, but keep trailing partial word
+                        const combined = currentLine + chunk;
+                        const parts = combined.split(/[\r\n\t ]+/);
+                        const endsWithDelim = /[\r\n\t ]$/.test(combined);
+                        currentLine = endsWithDelim ? '' : (parts.pop() || '');
+                        parts.forEach((w) => {
+                            if (w) processSerialLine(w);
+                        });
+                    } else {
+                        // Number/row/pulse modes: split on newlines, keep trailing partial line
+                        const combined = currentLine + chunk;
+                        const lines = combined.split(/[\r\n]+/);
+                        currentLine = lines.pop() || '';
+                        lines.forEach((ln) => {
+                            if (ln) processSerialLine(ln);
+                        });
+
+                        // Responsive number extraction from combined chunk+partial
+                        const numMatches = combined.match(/[-+]?\d+(?:\.\d+)?/g);
+                        if (numMatches && numMatches.length) {
+                            setBigText(numMatches[numMatches.length - 1]);
                         }
-                    }
-
-                    // Also try to extract numbers from partial data (for responsive display)
-                    const numMatches = value.match(/[-+]?\d+(?:\.\d+)?/g);
-                    if (numMatches && numMatches.length && textDisplayEnabled) {
-                        setBigText(numMatches[numMatches.length - 1]);
                     }
                 }
             } catch (e) {
@@ -1095,9 +2314,18 @@
         const trimmed = line.trim();
         console.log('Serial line:', trimmed);
 
-        // If it's a number and text display is enabled, show it
-        if (trimmed && /^[-+]?\d+(?:\.\d+)?$/.test(trimmed) && textDisplayEnabled) {
+        if (!trimmed || !textDisplayEnabled) return;
+
+        // In Word mode we display *any* line (including numbers)
+        if (currentTextInputMode === 'word') {
             setBigText(trimmed);
+            return;
+        }
+
+        const isNumber = /^[-+]?\d+(?:\.\d+)?$/.test(trimmed);
+        if (isNumber) {
+            setBigText(trimmed);
+            return;
         }
     }
 
@@ -1136,16 +2364,96 @@
 
     function showHelp() {
         console.log("Help clicked");
-        alert("Help information would go here.");
+        openAbout(
+            "Developer help",
+            "Developer mode\n\n" +
+            "- Press D to toggle developer menus.\n" +
+            "- MIDI / Hydra / Text Effect menus are developer-only for now.\n" +
+            "- Press Space to hide/show the top menu bar.\n"
+        );
     }
 
     function showVersion() {
         console.log("Version clicked");
-        alert("Version 1.0");
+        openAbout(
+            "Console v1.0",
+            "Console v1.0\n\n" +
+            "Console is a companion display for Talko / Kraftor / Emy.\n" +
+            "It receives text over Serial or MIDI information and displays it in real time,\n" +
+            "driven by the speech / text stream coming from those tools.\n\n" +
+            "It can also use your audio input as a live source for visual effects and animations\n" +
+            "(Scope, Hydra, and other effects).\n\n" +
+            "Shortcuts:\n" +
+            "- Space: hide/show menu bar\n" +
+            "- D: developer mode (shows extra menus)\n"
+        );
     }
 
-    // Hide menu on spacebar press
+    // About modal helpers (in-page)
+    function openAbout(title, body) {
+        const overlay = document.getElementById('aboutOverlay');
+        const titleEl = document.getElementById('aboutTitle');
+        const bodyEl = document.getElementById('aboutBody');
+        if (!overlay || !titleEl || !bodyEl) return;
+
+        titleEl.textContent = title || 'About';
+        bodyEl.textContent = body || '';
+
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeAbout() {
+        const overlay = document.getElementById('aboutOverlay');
+        if (!overlay) return;
+        overlay.classList.remove('open');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    // Close modal on overlay click (but not when clicking inside the dialog)
+    window.addEventListener('click', (e) => {
+        const overlay = document.getElementById('aboutOverlay');
+        if (!overlay) return;
+        if (overlay.classList.contains('open') && e.target === overlay) {
+            closeAbout();
+        }
+    });
+
+    // Developer mode (UI gates for unfinished features) — OFF by default
+    let developerMode = localStorage.getItem('developerMode') === '1';
+    function applyDeveloperMode() {
+        document.body.classList.toggle('dev-mode', developerMode);
+    }
+    // Ensure dev mode is OFF on first load (clear any stale state for v1.0 release)
+    if (localStorage.getItem('developerMode') === null) {
+        developerMode = false;
+        localStorage.setItem('developerMode', '0');
+    }
+    function toggleDeveloperMode() {
+        developerMode = !developerMode;
+        localStorage.setItem('developerMode', developerMode ? '1' : '0');
+        applyDeveloperMode();
+        console.log('Developer mode:', developerMode ? 'ON' : 'OFF');
+    }
+    applyDeveloperMode();
+
+    // Hide menu on spacebar press + toggle developer mode on 'd'
     document.addEventListener('keydown', function (event) {
+        const tag = (event.target && event.target.tagName) ? event.target.tagName : '';
+        const isTypingTarget = tag === 'INPUT' || tag === 'TEXTAREA' || event.target?.isContentEditable;
+
+        if (!event.ctrlKey && !event.metaKey && !event.altKey && !isTypingTarget) {
+            if (event.key === 'Escape') {
+                closeAbout();
+                return;
+            }
+            if (event.key && event.key.toLowerCase() === 'd') {
+                event.preventDefault();
+                toggleDeveloperMode();
+                return;
+            }
+        }
+
         if (event.code === 'Space' && event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') {
             event.preventDefault();
             const menuBar = document.querySelector('.menu-bar');
@@ -1211,5 +2519,23 @@
 
         // Initialize gain display
         updateGainDisplay();
+
+        // Initialize text style menu + apply stored styles
+        initTextStyleMenu();
+
+        // Initialize text effects (VFX)
+        initTextEffectMenu();
+
+        // Restore text input settings (Show Words etc.)
+        initTextInputMenu();
+
+        // If a webfont finishes loading after startup (esp. VT323), re-sync styles/VFX.
+        ensureFontLoaded(textStyle.fontFamily).then(() => {
+            applyTextStyle();
+            if (typeof vfxEnabled !== 'undefined' && vfxEnabled) {
+                try { applyVfx(); } catch (e) { }
+                try { vfxOnTextChange(getVfxRootElement()); } catch (e) { }
+            }
+        });
     });
 </script>

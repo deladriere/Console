@@ -9,15 +9,8 @@ It can also use your **audio input** as a live source for visual effects and ani
 
 ## Download / install
 
-- Download `Console.html` (and `image.png` if you want the README screenshot).
-- Keep the file structure as-is:
-
-```
-Console/
-  Console.html
-  image.png
-  README.md
-```
+- Download **`Console.html`** (that’s all you need).
+- `README.md` and `image.png` are only for documentation/screenshot.
 
 ## Run it
 

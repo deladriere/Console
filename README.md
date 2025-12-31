@@ -22,7 +22,7 @@ It can also use your **audio input** as a live source for visual effects and ani
 ### Opening the HTML file
 
 - You can open `Console.html` directly (double-click).
-- Note: **Web Serial usually does not work from `file://`** URLs in modern browsers.
+
 
 ## Connect Serial
 

@@ -1,3 +1,7 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polaxis Console</title>
+<link rel="icon" href="data:,">
 <style>
     html,
     body {
@@ -338,6 +342,14 @@
     }
 
     /* Row effect: 1..8 outlines, active full color */
+    #wordText.sentence {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        width: 90vw;
+        max-width: 90vw;
+        line-height: 1.4;
+    }
+
     #rowNums {
         position: relative;
         width: 100vw;
@@ -635,9 +647,9 @@
             </button>
             <div class="submenu-separator"></div>
             <div class="submenu-label">String</div>
-            <button class="submenu-item disabled">
+            <button class="submenu-item" data-mode="sentence" onclick="setTextInputMode('sentence', this)">
                 <span class="checkmark">✓</span>
-                <span>Coming soon...</span>
+                <span>Full sentence</span>
             </button>
             <div class="submenu-separator"></div>
             <div class="submenu-label">Words</div>
@@ -788,6 +800,7 @@
     let serialConnected = false;
     let bytesReceived = 0;
     let currentLine = '';
+    let captionBuffer = '';
     const BAUD_RATE = 115200;
 
     // Scope state
@@ -1165,7 +1178,7 @@
             if (wordBtn) wordBtn.classList.add('selected');
         } else {
             // Numbers modes: select only the matching number mode button (fallback to pulse)
-            const allowed = new Set(['pulse', 'zoom', 'row', 'row10']);
+            const allowed = new Set(['pulse', 'zoom', 'row', 'row10', 'sentence']);
             if (!allowed.has(currentTextInputMode)) currentTextInputMode = 'pulse';
             localStorage.setItem('textInputMode', currentTextInputMode);
             const btn = document.querySelector(`.submenu[data-group="textInput"] .submenu-item[data-mode="${currentTextInputMode}"]`);
@@ -1381,6 +1394,22 @@
 
             const text = String(bigText || '');
             if (!text) return;
+            if (currentTextInputMode === 'sentence') {
+                let px = Math.min(40, fontPx * 0.4);
+                let lines;
+                do {
+                    ctx.font = `${px}px ${familyCss}`;
+                    lines = wrapSentence(ctx, text, w * 0.86);
+                    if (lines.length * px * 1.4 <= h * 0.8 || px <= 10) break;
+                    px -= 1;
+                } while (true);
+                lines.forEach((line, i) => {
+                    const y = h * 0.5 + (i - (lines.length - 1) / 2) * px * 1.4;
+                    ctx.strokeText(line, w * 0.5, y);
+                    ctx.fillText(line, w * 0.5, y);
+                });
+                return;
+            }
             ctx.font = `${fontPx}px ${familyCss}`;
             const x = w * 0.5;
             const y = h * 0.5;
@@ -1491,7 +1520,9 @@
                 wordEl.style.webkitTextStroke = `${effectiveOutlineW}px ${outline}`;
                 wordEl.style.textShadow = 'none';
             }
-            wordEl.style.fontSize = `min(${size}vh, ${size}vw)`;
+            wordEl.style.fontSize = currentTextInputMode === 'sentence'
+                ? `clamp(10px, min(${size * 0.4}vh, ${size * 0.4}vw), 40px)`
+                : `min(${size}vh, ${size}vw)`;
         }
 
         // Row
@@ -1907,7 +1938,18 @@
         bigText = String(txt);
         const num = parseFloat(bigText);
         const isRowMode = currentTextInputMode === 'row' || currentTextInputMode === 'row10';
-        const isWordMode = currentTextInputMode === 'word';
+        const isWordMode = currentTextInputMode === 'word' || currentTextInputMode === 'sentence';
+        if (wordEl) wordEl.classList.toggle('sentence', currentTextInputMode === 'sentence');
+        applyTextStyle();
+        if (currentTextInputMode === 'sentence' && wordEl) {
+            wordEl.textContent = bigText;
+            wordEl.style.display = 'block';
+            // Keep the complete caption on screen, including narrow portrait views.
+            let px = parseFloat(getComputedStyle(wordEl).fontSize);
+            while (wordEl.offsetHeight > innerHeight * 0.85 && px > 10) {
+                wordEl.style.fontSize = `${--px}px`;
+            }
+        }
 
         // Keep canvas renderer in sync (when VFX uses the canvas target)
         if (usingTextCanvasForVfx()) {
@@ -2047,7 +2089,7 @@
         if (backdropEl) backdropEl.style.display = 'block';
         if (vfxBoxEl) vfxBoxEl.style.display = 'flex';
 
-        if (currentTextInputMode === 'word') {
+        if (currentTextInputMode === 'word' || currentTextInputMode === 'sentence') {
             if (wordEl) wordEl.style.display = 'block';
             if (rowEl) rowEl.style.display = 'none';
             if (bigEl) bigEl.style.display = 'none';
@@ -2069,6 +2111,7 @@
         console.log("Text input mode:", mode);
         selectItemInGroup(button, 'textInput');
         currentTextInputMode = mode;
+        currentLine = captionBuffer = '';
         localStorage.setItem('textInputMode', currentTextInputMode);
 
         // Either/or ticks: if a Numbers mode is selected, clear Words ticks
@@ -2194,8 +2237,12 @@
             // Request port and open at 115200
             port = await navigator.serial.requestPort();
             await port.open({ baudRate: BAUD_RATE });
+            if (typeof port.setSignals === 'function') {
+                await port.setSignals({ dataTerminalReady: true });
+            }
 
             serialConnected = true;
+            currentLine = captionBuffer = '';
             bytesReceived = 0;
             console.log('Serial connected at', BAUD_RATE, 'baud');
 
@@ -2229,6 +2276,7 @@
 
     async function disconnectSerial() {
         serialConnected = false;
+        currentLine = captionBuffer = '';
 
         if (reader) {
             try {
@@ -2270,12 +2318,15 @@
                     break;
                 }
                 if (value) {
-                    const chunk = String(value);
-                    bytesReceived += chunk.length;
-                    console.log('RX chunk:', chunk, '| Total chars:', bytesReceived);
+                    const rawChunk = String(value);
+                    bytesReceived += rawChunk.length;
+                    console.log('RX chunk:', rawChunk, '| Total chars:', bytesReceived);
 
                     if (!textDisplayEnabled) continue;
 
+                    // Filter caption frames before legacy Words/Numbers parsing too.
+                    const chunk = receiveCaptionChunk(rawChunk);
+                    if (currentTextInputMode === 'sentence' || !chunk) continue;
                     if (currentTextInputMode === 'word') {
                         // Word mode: split on spaces/tabs/newlines, but keep trailing partial word
                         const combined = currentLine + chunk;
@@ -2308,6 +2359,52 @@
                 break;
             }
         }
+    }
+
+    function cleanCaption(text) {
+        // DECtalk commands, phoneme/pause blocks, and terminal control bytes.
+        return String(text).replace(/\[[^\]]*\]/g, ' ')
+            .replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function receiveCaptionChunk(chunk) {
+        captionBuffer = (captionBuffer + chunk).slice(-4096);
+        let legacyText = '';
+        while (captionBuffer) {
+            const start = captionBuffer.indexOf('\x1e');
+            if (start < 0) {
+                legacyText += captionBuffer; captionBuffer = ''; break;
+            }
+            legacyText += captionBuffer.slice(0, start);
+            captionBuffer = captionBuffer.slice(start);
+            const end = captionBuffer.indexOf('\x1f');
+            const next = captionBuffer.indexOf('\x1e', 1);
+            // A retrigger may replace a partly sent caption. Resync to its marker.
+            if (next >= 0 && (end < 0 || next < end)) {
+                captionBuffer = captionBuffer.slice(next); continue;
+            }
+            if (end < 0) break;
+            const native = captionBuffer.slice(5, end);
+            if (captionBuffer.startsWith('\x1eVAX:') &&
+                currentTextInputMode === 'sentence' && !/[\r\n]/.test(native)) {
+                const text = cleanCaption(native);
+                if (text && textDisplayEnabled) setBigText(text);
+            }
+            captionBuffer = captionBuffer.slice(end + 1);
+        }
+        return legacyText;
+    }
+
+    function wrapSentence(ctx, text, width) {
+        const lines = []; let line = '';
+        for (const word of text.split(/\s+/)) {
+            const next = line ? `${line} ${word}` : word;
+            if (line && ctx.measureText(next).width > width) {
+                lines.push(line); line = word;
+            } else line = next;
+        }
+        if (line) lines.push(line);
+        return lines;
     }
 
     function processSerialLine(line) {

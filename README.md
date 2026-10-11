@@ -34,6 +34,24 @@ It can also use your **audio input** as a live source for visual effects and ani
 
 Incoming text/numbers are displayed live (Numbers modes / Words mode).
 
+## VAX full sentences
+
+Use **Text Input → String → Full sentence**, then **Serial → Connect Port**.
+With the caption-enabled VAX firmware, MIDI triggers and Designer auditions
+show the whole sentence. Console removes DECtalk commands and phoneme/pause
+blocks, wraps the text, and ignores terminal prompts and diagnostic messages.
+Existing text styles, effects, audio input, Numbers and Words modes remain available.
+
+This displays a caption when speech is submitted; it does not track individual
+word timing. Phoneme-only input needs a separate readable transcript and is
+not converted back into words. USB MIDI can remain connected in VAX Designer
+while Console uses serial; close other serial terminals first.
+
+Caption frames use `RS + VAX: + native text + US + CRLF` (RS = byte 30,
+US = byte 31). Only complete frames are displayed. An interrupted frame is
+discarded when the next caption starts. Captions are best effort: busy or
+disconnected serial, rapid replacements, or a FRAM listing may drop them.
+
 ## Audio input (microphone)
 
 Some modes use the microphone as a live source:

@@ -22,6 +22,8 @@ It can also use your **audio input** as a live source for visual effects and ani
 ### Opening the HTML file
 
 - You can open `Console.html` directly (double-click).
+- If you have trouble running it locally (or Serial does not work), use the hosted version:
+  - `https://deladriere.github.io/Console/Console.html`
 
 
 ## Connect Serial

@@ -52,6 +52,23 @@ US = byte 31). Only complete frames are displayed. An interrupted frame is
 discarded when the next caption starts. Captions are best effort: busy or
 disconnected serial, rapid replacements, or a FRAM listing may drop them.
 
+### Word slicing
+
+Choose **Text Input → String → Word slicing** to split a complete VAX caption
+into words and display them one at a time. The first word appears immediately;
+the last word stays on screen. A new caption replaces the running sequence.
+Selecting the mode also slices the latest received caption, so you can switch
+between the full sentence and sliced words without triggering VAX again.
+
+The pace comes from the last DECtalk `[:ra ...]` or `[:rate ...]` command in the
+caption (150 words/minute if absent, within 75-600). This is an approximate
+display pace; it does not follow audio or account for individual word durations
+and pauses. Disconnecting, hiding text or changing modes stops the sequence.
+The existing **Words → Pulse / Zoom-in** modes still display incoming words
+directly and do not slice sentences. No firmware change is needed.
+
+Run `node tests/sentence_test.cjs` to check captions and word slicing.
+
 ## Audio input (microphone)
 
 Some modes use the microphone as a live source:

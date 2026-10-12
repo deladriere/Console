@@ -651,6 +651,10 @@
                 <span class="checkmark">✓</span>
                 <span>Full sentence</span>
             </button>
+            <button class="submenu-item" data-mode="slice" onclick="setTextInputMode('slice', this)">
+                <span class="checkmark">✓</span>
+                <span>Word slicing</span>
+            </button>
             <div class="submenu-separator"></div>
             <div class="submenu-label">Words</div>
             <div class="word-anim-group">
@@ -743,6 +747,9 @@
             </button>
             <button class="submenu-item" onclick="showVersion()">
                 <span>Version 1.0</span>
+            </button>
+            <button class="submenu-item" onclick="window.open('https://github.com/deladriere/Console', '_blank', 'noopener')">
+                <span>Source code</span>
             </button>
         </div>
     </div>
@@ -1135,6 +1142,9 @@
     let textDisplayEnabled = localStorage.getItem('textDisplayEnabled') === '1';
     let currentTextInputMode = localStorage.getItem('textInputMode') || 'pulse';
     let wordAnimMode = localStorage.getItem('wordAnimMode') || 'pulse'; // 'pulse' | 'zoom'
+    let latestCaption = '';
+    let wordSliceTimer = null;
+    let wordSliceToken = 0;
     let bigText = '';
     const backdropEl = document.getElementById('textBackdrop');
     const vfxBoxEl = document.getElementById('vfxBox');
@@ -1178,7 +1188,7 @@
             if (wordBtn) wordBtn.classList.add('selected');
         } else {
             // Numbers modes: select only the matching number mode button (fallback to pulse)
-            const allowed = new Set(['pulse', 'zoom', 'row', 'row10', 'sentence']);
+            const allowed = new Set(['pulse', 'zoom', 'row', 'row10', 'sentence', 'slice']);
             if (!allowed.has(currentTextInputMode)) currentTextInputMode = 'pulse';
             localStorage.setItem('textInputMode', currentTextInputMode);
             const btn = document.querySelector(`.submenu[data-group="textInput"] .submenu-item[data-mode="${currentTextInputMode}"]`);
@@ -1411,6 +1421,12 @@
                 return;
             }
             ctx.font = `${fontPx}px ${familyCss}`;
+            if (currentTextInputMode === 'slice') {
+                let px = fontPx;
+                while (ctx.measureText(text).width > w * 0.9 && px > 10) {
+                    ctx.font = `${--px}px ${familyCss}`;
+                }
+            }
             const x = w * 0.5;
             const y = h * 0.5;
             ctx.strokeText(text, x, y);
@@ -1938,15 +1954,16 @@
         bigText = String(txt);
         const num = parseFloat(bigText);
         const isRowMode = currentTextInputMode === 'row' || currentTextInputMode === 'row10';
-        const isWordMode = currentTextInputMode === 'word' || currentTextInputMode === 'sentence';
+        const isWordMode = ['word', 'sentence', 'slice'].includes(currentTextInputMode);
         if (wordEl) wordEl.classList.toggle('sentence', currentTextInputMode === 'sentence');
         applyTextStyle();
-        if (currentTextInputMode === 'sentence' && wordEl) {
+        if (['sentence', 'slice'].includes(currentTextInputMode) && wordEl) {
             wordEl.textContent = bigText;
             wordEl.style.display = 'block';
             // Keep the complete caption on screen, including narrow portrait views.
             let px = parseFloat(getComputedStyle(wordEl).fontSize);
-            while (wordEl.offsetHeight > innerHeight * 0.85 && px > 10) {
+            while ((wordEl.offsetHeight > innerHeight * 0.85 ||
+                    wordEl.scrollWidth > wordEl.clientWidth) && px > 10) {
                 wordEl.style.fontSize = `${--px}px`;
             }
         }
@@ -2075,6 +2092,7 @@
             updateTextDisplayVisibility();
         } else {
             switchEl.classList.remove('active');
+            stopWordSlicing();
             if (backdropEl) backdropEl.style.display = 'none';
             if (vfxBoxEl) vfxBoxEl.style.display = 'none';
             if (bigEl) bigEl.style.display = 'none';
@@ -2089,7 +2107,7 @@
         if (backdropEl) backdropEl.style.display = 'block';
         if (vfxBoxEl) vfxBoxEl.style.display = 'flex';
 
-        if (currentTextInputMode === 'word' || currentTextInputMode === 'sentence') {
+        if (['word', 'sentence', 'slice'].includes(currentTextInputMode)) {
             if (wordEl) wordEl.style.display = 'block';
             if (rowEl) rowEl.style.display = 'none';
             if (bigEl) bigEl.style.display = 'none';
@@ -2108,6 +2126,7 @@
     }
 
     function setTextInputMode(mode, button) {
+        stopWordSlicing();
         console.log("Text input mode:", mode);
         selectItemInGroup(button, 'textInput');
         currentTextInputMode = mode;
@@ -2125,11 +2144,15 @@
         if (textDisplayEnabled) {
             updateTextDisplayVisibility();
             // Re-apply current value for new effect
-            if (bigText) setBigText(bigText);
+            if (mode === 'slice' && latestCaption) startWordSlicing(latestCaption);
+            else if (mode === 'sentence' && latestCaption) setBigText(cleanCaption(latestCaption));
+            else if (bigText) setBigText(bigText);
         }
     }
 
     function setWordAnimMode(mode, button) {
+        stopWordSlicing();
+        currentLine = captionBuffer = '';
         wordAnimMode = (mode === 'zoom') ? 'zoom' : 'pulse';
         localStorage.setItem('wordAnimMode', wordAnimMode);
 
@@ -2242,6 +2265,8 @@
             }
 
             serialConnected = true;
+            stopWordSlicing();
+            latestCaption = '';
             currentLine = captionBuffer = '';
             bytesReceived = 0;
             console.log('Serial connected at', BAUD_RATE, 'baud');
@@ -2275,6 +2300,8 @@
     }
 
     async function disconnectSerial() {
+        stopWordSlicing();
+        latestCaption = '';
         serialConnected = false;
         currentLine = captionBuffer = '';
 
@@ -2314,6 +2341,7 @@
             try {
                 const { value, done } = await reader.read();
                 if (done) {
+                    stopWordSlicing();
                     console.log('Reader done');
                     break;
                 }
@@ -2326,7 +2354,7 @@
 
                     // Filter caption frames before legacy Words/Numbers parsing too.
                     const chunk = receiveCaptionChunk(rawChunk);
-                    if (currentTextInputMode === 'sentence' || !chunk) continue;
+                    if (['sentence', 'slice'].includes(currentTextInputMode) || !chunk) continue;
                     if (currentTextInputMode === 'word') {
                         // Word mode: split on spaces/tabs/newlines, but keep trailing partial word
                         const combined = currentLine + chunk;
@@ -2353,6 +2381,7 @@
                     }
                 }
             } catch (e) {
+                stopWordSlicing();
                 if (serialConnected) {
                     console.error('Read error:', e);
                 }
@@ -2365,6 +2394,32 @@
         // DECtalk commands, phoneme/pause blocks, and terminal control bytes.
         return String(text).replace(/\[[^\]]*\]/g, ' ')
             .replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function stopWordSlicing() {
+        ++wordSliceToken;
+        if (wordSliceTimer !== null) clearTimeout(wordSliceTimer);
+        wordSliceTimer = null;
+    }
+
+    function startWordSlicing(native) {
+        stopWordSlicing();
+        const text = cleanCaption(native);
+        if (!text) return;
+        const words = text.split(/\s+/);
+        // Firmware's outer [:ra] can be overridden by an inline [:rate].
+        const rates = [...String(native).matchAll(/\[:(?:rate|ra)\s+(\d+)\s*\]/gi)];
+        const rate = Math.max(75, Math.min(600, rates.length ? Number(rates.at(-1)[1]) : 150));
+        const interval = 60000 / rate;
+        const token = wordSliceToken;
+        let index = 0;
+        function nextWord() {
+            wordSliceTimer = null;
+            if (token !== wordSliceToken || currentTextInputMode !== 'slice' || !textDisplayEnabled) return;
+            setBigText(words[index++]);
+            if (index < words.length) wordSliceTimer = setTimeout(nextWord, interval);
+        }
+        nextWord();
     }
 
     function receiveCaptionChunk(chunk) {
@@ -2385,10 +2440,13 @@
             }
             if (end < 0) break;
             const native = captionBuffer.slice(5, end);
-            if (captionBuffer.startsWith('\x1eVAX:') &&
-                currentTextInputMode === 'sentence' && !/[\r\n]/.test(native)) {
+            if (captionBuffer.startsWith('\x1eVAX:') && !/[\r\n]/.test(native)) {
                 const text = cleanCaption(native);
-                if (text && textDisplayEnabled) setBigText(text);
+                if (text) {
+                    latestCaption = native;
+                    if (textDisplayEnabled && currentTextInputMode === 'sentence') setBigText(text);
+                    else if (textDisplayEnabled && currentTextInputMode === 'slice') startWordSlicing(native);
+                }
             }
             captionBuffer = captionBuffer.slice(end + 1);
         }
@@ -2429,6 +2487,8 @@
     // Handle serial disconnect event
     if ('serial' in navigator) {
         navigator.serial.addEventListener('disconnect', (e) => {
+            stopWordSlicing();
+            latestCaption = '';
             console.log('Serial device disconnected');
             serialConnected = false;
 

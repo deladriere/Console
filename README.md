@@ -80,6 +80,122 @@ Your browser may ask for microphone permission when enabling these features.
 
 ## Keyboard shortcuts
 
-- **Space**: hide/show the top menu bar
-- **D**: toggle developer mode (shows extra menus)
+- **Space**: toggle fullscreen when 2D Mouth or 3D Head is active; otherwise hide/show the top menu bar
+- **Escape**: exit fullscreen
+- **D**: toggle developer mode (shows extra menus: 2D Mouth, MIDI, Hydra, …)
 
+**Help** is always available under **About → Help**.
+
+
+## Experimental 2D Mouth (developer mode)
+
+Press **D** to reveal **2D Mouth**, then select **Enable 2D Mouth**.
+This migrates the former `Visual/Robovox_mouth` app into Console, sharing
+**Serial → Connect Port** at 115200 baud; it does not open a second port.
+
+- **Renderer:** new animated vector robot, or original bitmap mouth images.
+- **Votrax model:** original SC-01 and SC-02 phoneme-to-viseme mappings.
+- **View:** full head or mouth only. Bitmap mode retains all four original faces.
+- **Show phoneme / mapping:** code, IPA, viseme ID and input source.
+- **Space:** enter / exit actual browser fullscreen for the active vector or bitmap
+  display. The head grows to fit the screen, the debug label is hidden, and Scope
+  stays visible behind it. **Escape** exits fullscreen; disabling Mouth or
+  developer mode also exits.
+  Text fields, selects, buttons and modified keyboard shortcuts retain their
+  normal keyboard behavior. Exiting restores the previous menu visibility.
+- **Preview / test:** choose a phoneme, type an exact code, or play the silent demo.
+  An incoming valid serial phoneme stops the demo and takes over immediately.
+
+Serial input expects one exact Votrax label per line (for example `M`, `AH`,
+`SCH`, `PA` for SC-02; `PA0` for SC-01). Split serial chunks are buffered.
+Unknown lines and VAX caption frames do not animate the mouth. This works
+even when Text Input display is off or is using Full sentence / Word slicing.
+No audio analysis, text-to-phoneme conversion, or VAX lip sync is performed.
+Animation follows received events; precise alignment with hardware audio is
+not guaranteed. Send pause/silence explicitly to close the mouth.
+
+The display starts disabled on every load. Renderer, model, view, face and debug
+preferences are retained. Leaving developer mode hides the display and stops
+the demo; disconnecting or hiding the page resets to silence. The SVG eyes blink
+and mouths interpolate; reduced-motion preferences disable those animations.
+
+`Console.html` remains a single-file app: the 22 original PNG mouths and four
+face bitmaps are embedded without conversion. Its existing external fonts and
+Hydra dependency are unchanged. Viseme images and mapping provenance are inherited
+from Robomouth; see [Microsoft viseme documentation](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/how-to-speech-synthesis-viseme).
+This migration does not establish additional rights to the original bitmap assets.
+
+Run `node tests/mouth_test.cjs` for mapping preservation, embedded asset integrity,
+stream framing and lifecycle regression checks, and `node tests/sentence_test.cjs`
+for the existing captions / word slicing behavior.
+
+## Experimental 3D Head
+
+Open **3D Head → Enable 3D Head** (always in the main menu; no developer mode needed).
+**Style → Wireframe / Solid (shaded)** chooses between blue mesh lines and a
+smoothly shaded human face. Both modes use the same ready-made MakeHuman hm08
+head with its original anatomical proportions and 22 supplied mouth targets.
+They share Console's SC-01/SC-02 phoneme mappings, serial input and silent demo.
+The former procedural head has been replaced. Original vector and bitmap modes
+remain in **2D Mouth** (developer mode); only one head renderer is active at a time.
+
+- Drag the head, use arrow keys while it is focused, or adjust **View angle**.
+- **Head size** scales the display from 50% to 160% (Reset view returns to 100%).
+- Choose **Wire colour**, enable **Auto rotate**, or **Reset view**.
+- **Mouth close-up** zooms into the source mesh's lips and jaw.
+- The head canvas is transparent outside the mesh, so Scope and Hydra stay visible
+  around it. The face itself is an opaque silhouette, so the waveform does not cut
+  through the wires. Fullscreen keeps Scope/Hydra running behind the head.
+- **Enable 3D Head** uses the same toggle switch style as Scope / Hydra.
+- **Space** toggles true fullscreen (document-level, so Scope stays visible);
+  **Escape** exits. Input controls retain their normal keyboard behavior.
+  Click the head after editing a field to use Space.
+- Both 3D styles blink naturally at irregular 3–7 second intervals. Eyelid movement
+  blends independently with speech, with quick closure and gentler reopening.
+- Reduced-motion preferences disable automatic blinks, auto rotation and mouth interpolation.
+  Animation stops when the page or renderer is hidden.
+
+The embedded model contains 4,858 vertices, 4,786 faces and all 22 CC0 viseme
+shapes. Original quads provide the wire lines without triangulation diagonals.
+WebGL renders depth-tested hidden lines or smooth shaded surfaces. No new library,
+model download or network request is needed at runtime; `Console.html` remains
+self-contained for all head assets. A WebGL-capable browser is required for 3D.
+The existing hardware speech timing limitations still apply.
+
+Run `node tests/head3d_test.cjs` to verify the actual mesh, normals, morph targets,
+source metadata, embedded asset integrity and interpolation. Existing phoneme /
+bitmap and VAX caption tests remain `tests/mouth_test.cjs` and
+`tests/sentence_test.cjs`.
+
+## 3D Head sources and license
+
+These sources are also available in **About → 3D Head sources**.
+
+- **Head:** MakeHuman Community, hm08 base mesh.
+  [Pinned mesh source](https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/3dobjs/base.obj),
+  revision `a8bc2d54ff0ac92e78ff71431b1023eda42bf482`.
+- **22 mouth shapes:** [Visemes 01](https://static.makehumancommunity.org/assets/assetpacks/visemes01.html)
+  by **Mika Suominen**. Each target is explicitly marked CC0 in the pack metadata.
+  [Original target pack](https://files.makehumancommunity.org/functional/visemes01.zip).
+- **Eyelid blinks:** left/right blink targets from [Faceunits 01](https://static.makehumancommunity.org/assets/assetpacks/faceunits01.html)
+  by **Mika Suominen**, explicitly CC0 in the pack metadata.
+  [Original target pack](https://files.makehumancommunity.org/functional/faceunits01.zip).
+- **Asset license:** [CC0 1.0 Universal](https://static.makehumancommunity.org/about/license.html).
+  The mesh, viseme and eyelid data may be used, modified and redistributed, including
+  in public GitHub repositories. The full upstream legal text is in
+  `assets/head3d/CC0-1.0.txt`. Asset URLs, author names, revision and SHA-256
+  checksums are in `assets/head3d/provenance.json` and the embedded model metadata.
+- **Adaptation:** head/neck extraction, original vertex ID remapping, translation
+  and a clean display cut at the neck. Facial proportions and source mouth targets
+  are preserved. The renderer, loader, solid shading and viseme interpolation are
+  Console code. No MakeHuman application code is incorporated; its application
+  software license is separate from the CC0 asset license.
+
+To reproduce the embedded data, download the three checksum-pinned assets above and run:
+
+```sh
+python3 tools/build_head_asset.py --base base.obj --visemes visemes01.zip --faceunits faceunits01.zip --output head.json
+```
+
+The source and license statements here cover the replacement 3D assets. Existing
+bitmap assets retain their previously documented provenance.

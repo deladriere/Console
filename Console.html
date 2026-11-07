@@ -630,7 +630,7 @@ body.head-fullscreen #mouthWireframe {
             <button id="mouthEnabled" class="submenu-item" type="button" aria-pressed="false"><span class="checkmark">✓</span><span>Enable 2D Mouth</span></button>
             <div class="mouth-control mouth-options">
                 <div><label for="mouthRenderer">Renderer</label><select id="mouthRenderer"><option value="vector">Vector robot</option><option value="bitmap">Bitmap (original)</option></select></div>
-                <div><label for="mouthModel">Phoneme model</label><select id="mouthModel"><option value="sc02">SC-02</option><option value="sc01">SC-01</option><option value="sam">S.A.M.</option></select></div>
+                <div><label for="mouthModel">Phoneme model</label><select id="mouthModel"><option value="sc02">SC-02</option><option value="sc01">SC-01</option><option value="sam">S.A.M.</option><option value="monk">Talko Monk</option></select></div>
             </div>
             <div class="mouth-control"><label for="mouthView">View</label><select id="mouthView"><option value="head">Full head</option><option value="mouth">Mouth only</option></select></div>
             <div id="mouthFaceControl" class="mouth-control" hidden><label for="mouthFace">Bitmap background</label><select id="mouthFace"><option value="face1.jpeg">Face 1</option><option value="face.jpeg">Face 2</option><option value="face.png">Face 3</option><option value="face2.png">Face 4</option></select></div>
@@ -640,7 +640,7 @@ body.head-fullscreen #mouthWireframe {
             <div class="mouth-control"><label for="mouthPhoneme">Phoneme</label><select id="mouthPhoneme"></select></div>
             <div class="mouth-control"><label for="mouthSearch">Quick search</label><input id="mouthSearch" type="text" placeholder="PA, SCH, THV, AY…" autocomplete="off" maxlength="8"></div>
             <button id="mouthDemo" class="submenu-item" type="button" aria-pressed="false"><span class="checkmark">✓</span><span>Play demo</span></button>
-            <p class="mouth-note">Uses Serial → Connect Port (115200 baud). Choose S.A.M. for Talko S.A.M. Live input stops the demo. Preview has no audio. Space: fullscreen / exit. Esc: exit fullscreen. 3D Head has its own menu.</p>
+            <p class="mouth-note">Uses Serial → Connect Port (115200 baud). Choose Talko Monk for Monk firmware, or S.A.M. for Talko S.A.M. Live input stops the demo. Preview has no audio. Space: fullscreen / exit. Esc: exit fullscreen. 3D Head has its own menu.</p>
         </div>
     </div>
 
@@ -654,7 +654,7 @@ body.head-fullscreen #mouthWireframe {
             <div class="submenu-separator"></div>
             <div class="head3d-control"><label for="head3DStyle">Style</label><select id="head3DStyle"><option value="wireframe">Wireframe</option><option value="solid">Solid (shaded)</option></select></div>
             <div class="head3d-control head3d-options">
-                <div><label for="head3DModel">Phoneme model</label><select id="head3DModel"><option value="sc02">SC-02</option><option value="sc01">SC-01</option><option value="sam">S.A.M.</option></select></div>
+                <div><label for="head3DModel">Phoneme model</label><select id="head3DModel"><option value="sc02">SC-02</option><option value="sc01">SC-01</option><option value="sam">S.A.M.</option><option value="monk">Talko Monk</option></select></div>
                 <div><label for="head3DColor">Wire colour</label><input id="head3DColor" type="color" value="#5577ff"></div>
             </div>
             <div class="head3d-control"><label for="head3DView">View</label><select id="head3DView"><option value="head">Full head</option><option value="mouth">Mouth close-up</option></select></div>
@@ -667,7 +667,7 @@ body.head-fullscreen #mouthWireframe {
             <div class="submenu-label">Preview / test</div>
             <div class="head3d-control"><label for="head3DPhoneme">Phoneme</label><select id="head3DPhoneme"></select></div>
             <button id="head3DDemo" class="submenu-item" type="button" aria-pressed="false"><span class="checkmark">✓</span><span>Play demo</span></button>
-            <p class="head3d-note">Drag the head or use arrow keys to turn it. Space: fullscreen / exit. Esc: exit. Uses the existing serial connection; demo has no audio.</p>
+            <p class="head3d-note">Drag the head or use arrow keys to turn it. Space: fullscreen / exit. Esc: exit. Choose Talko Monk for Monk firmware, or S.A.M. for Talko S.A.M. Uses the existing serial connection; demo has no audio.</p>
         </div>
     </div>
 
@@ -1146,6 +1146,12 @@ body.head-fullscreen #mouthWireframe {
         ['UN', 'ən', 19]
     ].map(([code, ipa, viseme]) => ({ code, ipa: [ipa], viseme, description: visemeTable[viseme].example }));
 
+    // Monk shares the vowel transport and visemes, with its own discoverable model.
+    const monkTable = [
+        ['UW', 'oo / u'], ['OH', 'oh / o'], ['AA', 'ah / a'],
+        ['EH', 'eh / e'], ['IY', 'ee / i'], ['-', 'silence']
+    ].map(([code, description]) => ({ ...samTable.find(item => item.code === code), description }));
+
     // Robomouth SC-01/SC-02 tables are preserved above.
     const assets = JSON.parse(document.getElementById('mouthBitmapAssets').textContent);
     const el = id => document.getElementById(id);
@@ -1154,7 +1160,7 @@ body.head-fullscreen #mouthWireframe {
     // Keep the experimental display OFF on each load; retain visual preferences only.
     try {
         const saved = JSON.parse(localStorage.getItem('mouthSettings') || '{}');
-        for (const [key, values] of Object.entries({ renderer: ['vector','bitmap','wireframe'], renderer2D: ['vector','bitmap'], model: ['sc01','sc02','sam'], view: ['head','mouth'], face: ['face1.jpeg','face.jpeg','face.png','face2.png'] })) {
+        for (const [key, values] of Object.entries({ renderer: ['vector','bitmap','wireframe'], renderer2D: ['vector','bitmap'], model: ['sc01','sc02','sam','monk'], view: ['head','mouth'], face: ['face1.jpeg','face.jpeg','face.png','face2.png'] })) {
             if (values.includes(saved[key])) settings[key] = saved[key];
         }
         if (typeof saved.debug === 'boolean') settings.debug = saved.debug;
@@ -1166,8 +1172,8 @@ body.head-fullscreen #mouthWireframe {
         if (/^#[0-9a-f]{6}$/i.test(saved.wireColor)) settings.wireColor = saved.wireColor;
         if (settings.renderer !== 'wireframe') settings.renderer2D = settings.renderer;
     } catch (_) { /* Ignore invalid experimental settings. */ }
-    const tables = { sc01: votraxSC01Table, sc02: votraxSC02Table, sam: samTable };
-    const pauses = { sc01: 'PA0', sc02: 'PA', sam: '-' };
+    const tables = { sc01: votraxSC01Table, sc02: votraxSC02Table, sam: samTable, monk: monkTable };
+    const pauses = { sc01: 'PA0', sc02: 'PA', sam: '-', monk: '-' };
     const maps = Object.fromEntries(Object.entries(tables).map(([key, entries]) => [key, new Map(entries.map(item => [item.code, item]))]));
     let active = false, current = null, buffer = '', dropping = false, demoTimer = null, morphFrame = null;
     let currentSource = 'Waiting for serial phonemes';
@@ -1598,6 +1604,7 @@ body.head-fullscreen #mouthWireframe {
         stage.dataset.renderer = settings.renderer;
         for (const [key,id] of Object.entries({ model:'mouthModel', view:'mouthView', face:'mouthFace' })) el(id).value = settings[key];
         el('mouthRenderer').value = settings.renderer === 'wireframe' ? settings.renderer2D : settings.renderer;
+        el('mouthSearch').placeholder = settings.model === 'monk' ? 'UW, OH, AA, EH, IY, -' : 'PA, SCH, THV, AY…';
         el('head3DModel').value = settings.model; el('head3DView').value = settings.view;
         el('head3DStyle').value = settings.wireStyle;
         el('head3DColor').value = settings.wireColor; el('head3DYaw').value = String(Math.round(settings.wireYaw));
@@ -1634,9 +1641,9 @@ body.head-fullscreen #mouthWireframe {
         if (!maps.sam.has(code)) return;
         samFramed = true;
         clearSamLabelTimer();
-        if (!active || settings.model !== 'sam') return;
+        if (!active || !['sam','monk'].includes(settings.model) || !maps[settings.model].has(code)) return;
         stopDemo();
-        show(code, 'Serial · S.A.M.', code === pauses.sam);
+        show(code, settings.model === 'monk' ? 'Serial · Talko Monk' : 'Serial · S.A.M.', code === pauses[settings.model]);
     }
     function receive(chunk) {
         if (!active) { buffer = ''; dropping = false; return; }
@@ -1647,13 +1654,13 @@ body.head-fullscreen #mouthWireframe {
                 if (!dropping && buffer.trim()) {
                     const code = buffer.trim().toUpperCase();
                     if (maps[settings.model].has(code)) {
-                        if (settings.model !== 'sam') {
+                        if (!['sam','monk'].includes(settings.model)) {
                             stopDemo();
                             show(code, 'Serial · Votrax '+settings.model.toUpperCase().replace('SC','SC-'));
                         } else if (!samFramed) {
                             stopDemo();
                             clearSamLabelTimer();
-                            show(code, 'Serial · S.A.M. label');
+                            show(code, settings.model === 'monk' ? 'Serial · Talko Monk label' : 'Serial · S.A.M. label');
                             samLabelTimer = setTimeout(() => {
                                 samLabelTimer = null;
                                 silence('Waiting for serial phonemes');
@@ -1726,7 +1733,7 @@ body.head-fullscreen #mouthWireframe {
             pressed(id, true); el(id).lastElementChild.textContent = 'Stop demo';
         }
         clearSamLabelTimer();
-        const codes = settings.model === 'sam'
+        const codes = settings.model === 'monk' ? monkTable.map(item => item.code) : settings.model === 'sam'
             ? ['M','AA','IY','OW','UW','F','S','TH','L','-']
             : ['M','AH','E','O','U','F','S','TH','L',pauses[settings.model]];
         let index = 0;
@@ -1740,7 +1747,7 @@ body.head-fullscreen #mouthWireframe {
     document.addEventListener('visibilitychange', () => { if (document.hidden) reset(); sync(); });
     window.addEventListener('pagehide', () => { reset(); wire.pause(); });
     window.addEventListener('pageshow', () => sync());
-    window.ConsoleMouth = Object.freeze({ receive, receiveSam, reset, sync, handleSpace, exitFullscreen, isSam: () => settings.model === 'sam' });
+    window.ConsoleMouth = Object.freeze({ receive, receiveSam, reset, sync, handleSpace, exitFullscreen, usesSamStream: () => ['sam','monk'].includes(settings.model) });
     populate(); silence(); sync();
 
 })();
@@ -3194,7 +3201,7 @@ body.head-fullscreen #mouthWireframe {
     }
 
     async function requestSamStream() {
-        if (!serialConnected || !window.ConsoleMouth.isSam() || !port?.writable || port.writable.locked) return;
+        if (!serialConnected || !window.ConsoleMouth.usesSamStream() || !port?.writable || port.writable.locked) return;
         let writer;
         try {
             writer = port.writable.getWriter();

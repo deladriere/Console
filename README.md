@@ -89,6 +89,23 @@ Console requests the stream with `RS + SAM + US`. Speech events use
 events to the selected mouth model and keeps the plain labels available for
 text display. Close any other serial monitor before connecting Console.
 
+## Talko Monk vowel display
+
+1. Enable **3D Head**, or press **D** and enable **2D Mouth**.
+2. Choose **Phoneme model → Talko Monk** in that menu.
+3. Use **Serial → Connect Port** and select Talko's USB port.
+4. Play a note and turn SOUND, or hold ERROR to follow its vowel movements.
+
+The Talko Monk model offers its five vowel labels in SOUND order:
+**UW** (oo), **OH** (oh), **AA** (ah), **EH** (eh), **IY** (ee), plus
+**-** for silence. Its preview and demo use those six mouth shapes.
+**Text Input → Words** can show the labels alongside the mouth.
+
+The model uses the existing framed vowel stream internally. A sustained
+vowel holds the mouth open until another vowel or silence arrives. The
+selected model is shared by 2D Mouth and 3D Head and saved for the next visit.
+Close other serial monitors before connecting Console.
+
 ## Audio input (microphone)
 
 Some modes use the microphone as a live source:
@@ -114,7 +131,7 @@ This migrates the former `Visual/Robovox_mouth` app into Console, sharing
 **Serial → Connect Port** at 115200 baud; it does not open a second port.
 
 - **Renderer:** new animated vector robot, or original bitmap mouth images.
-- **Phoneme model:** Votrax SC-01, Votrax SC-02 or S.A.M.
+- **Phoneme model:** Votrax SC-01, Votrax SC-02, S.A.M. or Talko Monk.
 - **View:** full head or mouth only. Bitmap mode retains all four original faces.
 - **Show phoneme / mapping:** code, IPA, viseme ID and input source.
 - **Space:** enter / exit actual browser fullscreen for the active vector or bitmap
@@ -155,7 +172,7 @@ Open **3D Head → Enable 3D Head** (always in the main menu; no developer mode 
 **Style → Wireframe / Solid (shaded)** chooses between blue mesh lines and a
 smoothly shaded human face. Both modes use the same ready-made MakeHuman hm08
 head with its original anatomical proportions and 22 supplied mouth targets.
-They share Console's SC-01, SC-02 and S.A.M. phoneme mappings, serial input and silent demo.
+They share Console's SC-01, SC-02, S.A.M. and Talko Monk phoneme mappings, serial input and silent demo.
 The former procedural head has been replaced. Original vector and bitmap modes
 remain in **2D Mouth** (developer mode); only one head renderer is active at a time.
 

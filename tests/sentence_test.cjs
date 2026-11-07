@@ -3,7 +3,7 @@ const fs = require('fs'), vm = require('vm'), assert = require('assert');
 const path = require('path');
 const html = fs.readFileSync(path.join(__dirname, '../Console.html'), 'utf8');
 const code = html.slice(html.indexOf('    function cleanCaption('), html.indexOf('    function wrapSentence('));
-const shown = [];
+const shown = [], phonemes = [];
 let now = 0, timerId = 0;
 const timers = new Map();
 function tick(ms) {
@@ -16,6 +16,7 @@ function tick(ms) {
  now=target;
 }
 const context = vm.createContext({ captionBuffer: '', currentTextInputMode: 'sentence',
+ window: {ConsoleMouth: {receiveSam: code => phonemes.push(code)}},
  textDisplayEnabled: true, latestCaption: '', wordSliceTimer: null, wordSliceToken: 0,
  setTimeout: (callback,ms)=>{const id=++timerId;timers.set(id,{callback,at:now+ms});return id},
  clearTimeout: id=>timers.delete(id), setBigText: text => shown.push(text) });
@@ -47,6 +48,15 @@ assert.deepStrictEqual(shown,['<img src=x onerror=alert(1)>']); // renderer uses
 shown.length=0; context.currentTextInputMode='word';
 assert.strictEqual(context.receiveCaptionChunk('hello '+frame(native)+'world '),'hello \r\nworld ');
 assert.deepStrictEqual(shown,[]);
+const mixed = 'HELLO\r\n\x1eSAM:/H\x1f\x1eSAM:EH\x1f\x1eSAM:-\x1f';
+for (let split = 0; split <= mixed.length; split++) {
+ phonemes.length = 0;
+ context.captionBuffer = '';
+ const text = context.receiveCaptionChunk(mixed.slice(0, split)) +
+     context.receiveCaptionChunk(mixed.slice(split));
+ assert.strictEqual(text, 'HELLO\r\n');
+ assert.deepStrictEqual(phonemes, ['/H', 'EH', '-']);
+}
 context.currentTextInputMode='sentence';context.textDisplayEnabled=false;
 context.receiveCaptionChunk(frame('Hidden'));assert.deepStrictEqual(shown,[]);
 context.receiveCaptionChunk('\x1eVAX:'+'x'.repeat(5000));

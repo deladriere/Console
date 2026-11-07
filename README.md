@@ -69,6 +69,26 @@ directly and do not slice sentences. No firmware change is needed.
 
 Run `node tests/sentence_test.cjs` to check captions and word slicing.
 
+## Talko S.A.M. lip sync
+
+1. Enable **3D Head**, or press **D** and enable **2D Mouth**.
+2. In the same menu, choose **Phoneme model → S.A.M.**
+3. Use **Serial → Connect Port** and choose the Talko USB port.
+4. On Talko, use **bank 7** for vowels and diphthongs or **bank 8** for
+   consonants. Turn **SOUND** and press **GATE** to try each sound.
+   **Bank 3** (single words) is a quick way to try a phoneme sequence.
+
+Talko S.A.M. 0.6 sends phoneme changes as speech plays in all banks, along
+with a pause at the end or on gate cutoff. The head holds its current shape
+during an ERROR stutter. Choose **Text Input → Words** to display the spoken
+labels alongside the mouth. With 0.5, individual phoneme labels from banks 7
+and 8 give a brief mouth preview. Use 0.6 for continuous lip sync.
+
+Console requests the stream with `RS + SAM + US`. Speech events use
+`RS + SAM: + phoneme code + US`, with `-` for silence. Console routes those
+events to the selected mouth model and keeps the plain labels available for
+text display. Close any other serial monitor before connecting Console.
+
 ## Audio input (microphone)
 
 Some modes use the microphone as a live source:
@@ -94,7 +114,7 @@ This migrates the former `Visual/Robovox_mouth` app into Console, sharing
 **Serial → Connect Port** at 115200 baud; it does not open a second port.
 
 - **Renderer:** new animated vector robot, or original bitmap mouth images.
-- **Votrax model:** original SC-01 and SC-02 phoneme-to-viseme mappings.
+- **Phoneme model:** Votrax SC-01, Votrax SC-02 or S.A.M.
 - **View:** full head or mouth only. Bitmap mode retains all four original faces.
 - **Show phoneme / mapping:** code, IPA, viseme ID and input source.
 - **Space:** enter / exit actual browser fullscreen for the active vector or bitmap
@@ -106,7 +126,7 @@ This migrates the former `Visual/Robovox_mouth` app into Console, sharing
 - **Preview / test:** choose a phoneme, type an exact code, or play the silent demo.
   An incoming valid serial phoneme stops the demo and takes over immediately.
 
-Serial input expects one exact Votrax label per line (for example `M`, `AH`,
+In a Votrax model, serial input expects one exact Votrax label per line (for example `M`, `AH`,
 `SCH`, `PA` for SC-02; `PA0` for SC-01). Split serial chunks are buffered.
 Unknown lines and VAX caption frames do not animate the mouth. This works
 even when Text Input display is off or is using Full sentence / Word slicing.
@@ -135,7 +155,7 @@ Open **3D Head → Enable 3D Head** (always in the main menu; no developer mode 
 **Style → Wireframe / Solid (shaded)** chooses between blue mesh lines and a
 smoothly shaded human face. Both modes use the same ready-made MakeHuman hm08
 head with its original anatomical proportions and 22 supplied mouth targets.
-They share Console's SC-01/SC-02 phoneme mappings, serial input and silent demo.
+They share Console's SC-01, SC-02 and S.A.M. phoneme mappings, serial input and silent demo.
 The former procedural head has been replaced. Original vector and bitmap modes
 remain in **2D Mouth** (developer mode); only one head renderer is active at a time.
 

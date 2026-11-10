@@ -178,7 +178,19 @@ remain in **2D Mouth** (developer mode); only one head renderer is active at a t
 
 - Drag the head, use arrow keys while it is focused, or adjust **View angle**.
 - **Head size** scales the display from 50% to 160% (Reset view returns to 100%).
-- Choose **Wire colour**, enable **Auto rotate**, or **Reset view**.
+- **Face width** broadens the head from 100% to 140% along its own X axis in
+  both styles and at every mesh detail level. It follows rotation and facial
+  animation; solid lighting follows the wider surface. The preference is saved,
+  and Reset view retains the chosen width. 100% restores the original proportions.
+- **Mesh detail** has five settings for both 3D styles: 100% uses the original
+  4,786 polygons; 75%, 50%, 25% and 10% use 3,500, 2,400, 1,500 and 1,249 polygons.
+  Move toward **Robotic** for larger, more angular polygons. Reduced solid heads
+  use flat polygon normals; 100% retains the original smooth shading and wire grid.
+  The preference is saved across reloads; Reset view retains the selected detail.
+- Choose **Wire colour** in Wireframe style or **Head colour** in Solid style.
+  The two colours are saved independently. Head colour changes the shaded surface;
+  eyes, teeth and tongue retain their original materials.
+- Enable **Auto rotate**, or **Reset view**.
 - **Mouth close-up** zooms into the source mesh's lips and jaw.
 - The head canvas is transparent outside the mesh, so Scope and Hydra stay visible
   around it. The face itself is an opaque silhouette, so the waveform does not cut
@@ -199,10 +211,21 @@ model download or network request is needed at runtime; `Console.html` remains
 self-contained for all head assets. A WebGL-capable browser is required for 3D.
 The existing hardware speech timing limitations still apply.
 
+Reduced meshes use baked edge collapses referencing original source vertices, so
+the same 22 mouth targets and independent eyelid targets animate every level.
+The source model and its checksum are unchanged. Lip landmarks, fast-moving
+eyelid rims, symmetry seams and open boundaries are protected during reduction.
+The 10% minimum gives a strongly faceted head; 50% is a useful first comparison.
+Regenerate the embedded reduced topologies with
+`python3 tools/build_head_detail.py Console.html` after changing the source model.
+No simplification runs during playback.
+
 Run `node tests/head3d_test.cjs` to verify the actual mesh, normals, morph targets,
 source metadata, embedded asset integrity and interpolation. Existing phoneme /
 bitmap and VAX caption tests remain `tests/mouth_test.cjs` and
 `tests/sentence_test.cjs`.
+Run `node tests/head_detail_test.cjs` for reduced topology, exact boundaries,
+connected components and source-exact facial animation at every detail level.
 
 ## 3D Head sources and license
 

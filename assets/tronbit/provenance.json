@@ -1,0 +1,14 @@
+{
+  "reference": "https://editor.p5js.org/Chrismofer/full/B7St2wq1v",
+  "reference_title": "BIT-GPT 1.1",
+  "reference_author": "Chrismofer / Chris B.",
+  "implementation": "Independent mathematical meshes and Canvas projection; self-contained in Console.html",
+  "meshes": {
+    "neutral": "Icosahedron and its dodecahedral dual",
+    "YES": "Octahedron",
+    "NO": "Pentagonal pyramids on a dodecahedral base"
+  },
+  "reference_assets_copied": false,
+  "audio": "Talko hardware supplies speech; previews are silent",
+  "date": "2026-11-10"
+}

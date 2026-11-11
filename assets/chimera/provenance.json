@@ -1,0 +1,24 @@
+{
+  "project": "CHIMERA",
+  "author": "Jameson Hodge",
+  "license": "MIT",
+  "source": "https://github.com/jamesondh/chimera-vocal-synth",
+  "revision": "6259e880f5d0108b862e98cefd930aa8c5bc0dc5",
+  "sourceFiles": [
+    "anatomy3d.ts",
+    "beams3d.ts",
+    "expression.ts",
+    "geom.ts",
+    "profile.ts",
+    "vector.ts",
+    "../colors.ts"
+  ],
+  "adaptations": "Removed unused faceView/handle overlay from Anatomy3D. Console supplies baked anatomy frames and phoneme gestures; no audio engine or measured telemetry runs in Console.",
+  "geometryGeneratorURL": "https://chimera-vocal-synth.vercel.app/assets/chimera-BuGQbnb-.wasm",
+  "geometryGeneratorSHA256": "c42fadea04e63182f6e10e2ab8dbfa2a55dc4a5e0d70e04eb7b30934b324731d",
+  "geometryNote": "Geometry generated from the upstream deployed engine retrieved 2026-11-11; its binary revision is not advertised. Renderer source is separately pinned above.",
+  "threeVersion": "0.186.1",
+  "poseCount": 48,
+  "embeddedDataSHA256": "31e8c8e4990ca465a33b5a63f02c443a5e25b106375cf4a0768c220695d7dfff",
+  "embeddedRendererSHA256": "e702afc67a9337086307d419dd30e3092c05449861dd04517ba43412e158f557"
+}

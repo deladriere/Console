@@ -1,4 +1,4 @@
-# Console (Visual) — v1.0
+# Console (Visual) — v1.1
 
 ![Console screenshot](./image.png)
 
@@ -6,6 +6,15 @@ Console is a companion display for **Talko / Kraftor / Emy**.
 It receives text over **Serial** (Web Serial) or **MIDI** information and displays it in real time, driven by the speech / text stream coming from those tools.
 
 It can also use your **audio input** as a live source for visual effects and animations (Scope, Hydra, and other effects).
+
+## New in 1.1
+
+- **Chimera:** anatomical head animation driven by SC-01, SC-02, S.A.M. and
+  Talko Monk phoneme labels, with view controls, previews and a silent demo.
+- **TRON Bit:** YES/NO animation using the shared serial connection, with
+  coloured test-button feedback and a source reference under About.
+- **Robotrax:** playback-stream validation for phonemes, repeated answers,
+  pauses and gate cuts. Source credits and licence notices accompany the assets.
 
 ## Download / install
 
@@ -68,6 +77,73 @@ The existing **Words → Pulse / Zoom-in** modes still display incoming words
 directly and do not slice sentences. No firmware change is needed.
 
 Run `node tests/sentence_test.cjs` to check captions and word slicing.
+
+## TRON Bit
+
+Enable **TRON Bit → Enable TRON Bit** and connect the shared serial port. Talko
+Robotrax has a dedicated **bank A**: SOUND left = YES, right = NO. The neutral
+cyan shape floats and pulses; YES becomes amber and NO becomes a red-orange
+spiked form. STOP and cuts return it to neutral. Repeats and held phrases work.
+
+The display accepts this simple protocol from **any speech engine**:
+
+```text
+YES
+STOP
+NO
+STOP
+```
+
+Send YES or NO on its own line when the answer starts, then STOP when it ends
+or is cancelled. Repeated answers each send a new word/STOP pair. The shape
+stays active until STOP, so slow voices and held answers work too. The serial
+connection is shared with the other Console displays (115200 baud for Talko).
+
+Current Robotrax firmware sends those words for all named YES/NO selections (banks 4, 7, A),
+suppressing their SC-01 phoneme labels. Its `stream=words` PLAY diagnostics do
+not trigger a second animation. Robotrax 0.3 PLAY/phoneme streams and exact VAX
+YES/NO captions remain supported. The display does not infer a word from
+arbitrary phoneme streams. It uses Talko's audio, with no copied movie
+sound effects. Silent previews are available through the menu and Y/N keys.
+The current state highlights its test button (cyan Neutral, amber YES, red NO).
+Timed previews return the highlight to Neutral; incoming serial states use the
+same feedback. Buttons also provide hover, press and keyboard-focus feedback.
+Typing fields keep normal keyboard behavior. Size/drift are remembered, while
+the display starts off on each load. Space requests fullscreen, Escape exits.
+Choosing 3D Head/2D Mouth and Bit switches between the displays.
+
+The visual reference is [BIT-GPT 1.1 by Chrismofer](https://editor.p5js.org/Chrismofer/full/B7St2wq1v),
+also linked under **About → TRON Bit sources**.
+The Console implementation builds its own mathematical meshes and has no new
+runtime dependency. Reference attribution and mesh provenance are in
+`assets/tronbit/provenance.json`. Run `node tests/bit_test.cjs` for geometry and
+stream checks, and `node tests/robotrax_stream_test.cjs` for the actual Talko
+hardware capture. Existing mouth, caption, head and detail tests remain valid.
+
+## Talko Robotrax SC-01 mouth
+
+Talko Robotrax emits one exact SC-01 label per serial line while each phoneme
+plays, including repeated phones, PA0/PA1 and STOP. Named YES/NO answers instead
+send word/STOP events for Bit; other entries retain their phoneme stream. Firmware banks 6–9 add 128
+curated Votrax dictionary words; banks 0–5 retain their selections (MY NAME IS pronunciation is corrected).
+
+1. Enable **3D Head** or **2D Mouth**.
+2. Choose **Phoneme model → SC-01**.
+3. Use **Serial → Connect Port**, select the installed **Talko 2 Robotrax** version, at 115200 baud.
+4. On Talko, choose bank 5, SOUND fully left, to play HELLO; banks 6–9 provide
+   the new dictionary selections.
+
+The wire format is the existing Votrax protocol (`H`, `EH`, `L`, `L`, `O`,
+`STOP`, each on its own line). PLAY/RESULT diagnostics do not animate the mouth.
+The firmware queues labels against consumed audio samples, sends silence on a
+cut, and sends the current pose after reconnecting. No renderer/map change is
+needed; both head and mouth share the SC-01 input model. Use one serial
+connection: close a firmware bench/monitor before connecting Console.
+
+Run `node tests/robotrax_stream_test.cjs` after the hardware sweep to check the
+actual captured Talko stream against Console's parser, including arbitrary USB
+chunk boundaries, repeated labels, pauses, end silence and ignored diagnostics.
+An alternate firmware folder can be supplied as the first command argument.
 
 ## Talko S.A.M. lip sync
 
@@ -226,6 +302,53 @@ bitmap and VAX caption tests remain `tests/mouth_test.cjs` and
 `tests/sentence_test.cjs`.
 Run `node tests/head_detail_test.cjs` for reduced topology, exact boundaries,
 connected components and source-exact facial animation at every detail level.
+
+## Chimera anatomical head
+
+**Chimera → Enable Chimera** opens Jameson Hodge's CHIMERA anatomical 3D head.
+The menu is visible without developer mode, alongside **3D Head**. Only one of
+Chimera, 3D Head, 2D Mouth or TRON Bit is active at a time. Displays start off on
+reload; visual preferences are retained.
+
+- Choose **Phoneme model → SC-01 / SC-02 / S.A.M. / Talko Monk** to match the
+  firmware. The existing serial parser and S.A.M./Monk framed stream are shared.
+- Labels map through their existing IPA entries to CHIMERA jaw, tongue, lips and
+  soft-palate poses. Compound sounds advance through their component poses;
+  silence returns to a closed resting pose. These are visual approximations.
+- Choose a **Phoneme** for manual preview, or **Play demo** for a silent sequence.
+  A valid incoming serial phoneme stops the demo and takes over immediately.
+- Drag to turn, use arrow keys with the head focused, or adjust **View angle**.
+  **Head size**, **Smooth transitions**, **Reset view** and **Show phoneme / mapping**
+  are available in the menu. **Space** enters/exits fullscreen; **Esc** exits.
+- Natural blinks are independent of speech. Reduced-motion preferences disable
+  blinks and pose interpolation. Rendering pauses when hidden or disabled.
+
+The original CHIMERA `Anatomy3D` renderer and geometry helpers are adapted in
+`assets/chimera/`. Anatomy frames are baked from the upstream geometry engine;
+the Console interpolates those display frames and articulation presets. No
+CHIMERA audio synthesizer, WebAssembly, dictionary, microphone or acoustic
+telemetry runs in this mode. Pressure/airflow and pitch-driven expressions are
+not displayed. All head data and the Three.js renderer are embedded in
+`Console.html`, so opening it directly with `file://` needs no new runtime download.
+A browser with WebGL 2 is required for Chimera.
+
+**Licence:** CHIMERA is MIT, copyright (c) 2026 Jameson Hodge; Three.js 0.186.1 is
+also MIT. Both full notices are preserved in the HTML bundle and
+`assets/chimera/LICENSE-CHIMERA.txt` / `LICENSE-THREE.txt`. Reuse, modification,
+redistribution and commercial use are permitted with those notices retained.
+See **About → Chimera sources / licence** and `assets/chimera/provenance.json`.
+The renderer source is pinned to `6259e880f5d0108b862e98cefd930aa8c5bc0dc5`.
+Geometry was generated from the upstream deployed WebAssembly asset retrieved
+on 2026-11-11; its binary revision is not advertised, so it is recorded separately
+with its URL and SHA-256 rather than attributed to that renderer commit.
+
+To rebuild, use Node 20+ with `esbuild@0.27.0` and `three@0.186.1` installed in a
+build folder, then run `node tools/build_chimera.cjs --modules /path/to/node_modules`.
+This reuses the embedded pose data. Add `--wasm /path/to/chimera.wasm` to regenerate
+geometry using the upstream CHIMERA JSON API. The build tool updates the embedded
+bundle and provenance hashes; build dependencies are not needed for playback.
+Run `node tests/chimera_test.cjs` to verify every model's IPA mapping, finite
+geometry, internal articulator differences, compound sounds, notices and hashes.
 
 ## 3D Head sources and license
 

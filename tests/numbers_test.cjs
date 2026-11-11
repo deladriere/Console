@@ -26,6 +26,13 @@ async function replay(chunks,mode='row10',enabled=true){
  for(let split=0;split<=seven.length;split++)assert.deepStrictEqual(await replay([seven.slice(0,split),seven.slice(split)]),['7']);
  for(const mode of ['row','row10','pulse','zoom'])assert.deepStrictEqual(await replay([seven],mode),['7']);
  assert.deepStrictEqual(await replay([seven],'row10',false),[]);
+ const german=['NULL','EINS','ZWEI','DREI','VIER','FUENF','SECHS','SIEBEN','ACHT','NEUN'];
+ const germanTrace=german.map((label,i)=>`PLAY bank=12 item=${i+1} label="${label}" mode=speech\r\nEH1\r\nOO1\r\nSTOP\r\nRESULT label="${label}" clipped=0\r\n`).join('');
+ for(const mode of ['row','row10','pulse','zoom']) {
+  const chunks=Array.from(germanTrace);
+  assert.deepStrictEqual(await replay(chunks,mode),german.map((_,i)=>String(i)),`German labels in ${mode}`);
+ }
+ assert.deepStrictEqual(await replay(['FÜNF\nfu','enf\nfünf\n']),['5','5','5']);
  assert.deepStrictEqual(await replay(['Hello world\n'],'word'),['Hello','world']);
  const shown=[],context=vm.createContext({out:x=>shown.push(String(x))});vm.runInContext(helper+';globalThis.input=createNumberInput(out);',context);
  const input=context.input;

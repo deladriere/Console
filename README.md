@@ -1,4 +1,4 @@
-# Console (Visual) — v1.1.1
+# Console (Visual) — v1.1.2
 
 ![Console screenshot](./image.png)
 
@@ -6,6 +6,12 @@ Console is a companion display for **Talko / Kraftor / Emy**.
 It receives text over **Serial** (Web Serial) or **MIDI** information and displays it in real time, driven by the speech / text stream coming from those tools.
 
 It can also use your **audio input** as a live source for visual effects and animations (Scope, Hydra, and other effects).
+
+## New in 1.1.2
+
+Numeric modes recognize the German digits NULL, EINS, ZWEI, DREI, VIER,
+FUENF (or FÜNF), SECHS, SIEBEN, ACHT and NEUN, including Robotrax bank C
+PLAY labels. Playback phoneme events continue to animate the heads independently.
 
 ## Fixed in 1.1.1
 

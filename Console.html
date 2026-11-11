@@ -956,7 +956,7 @@ body.head-fullscreen #chimeraCanvas { width: min(calc(96dvh * var(--head-size)),
             <button class="submenu-item" onclick="showHead3DSources()"><span>3D Head sources</span></button>
             <button class="submenu-item" onclick="showChimeraSources()"><span>Chimera sources / licence</span></button>
             <button class="submenu-item" onclick="showVersion()">
-                <span>Version 1.1.1</span>
+                <span>Version 1.1.2</span>
             </button>
             <button class="submenu-item" onclick="window.open('https://github.com/deladriere/Console', '_blank', 'noopener')">
                 <span>Source code</span>
@@ -3814,6 +3814,7 @@ THE SOFTWARE.
     function createNumberInput(onNumber) {
         const words = {
             ZERO:0, ONE:1, TWO:2, THREE:3, FOUR:4, FIVE:5, SIX:6, SEVEN:7, EIGHT:8, NINE:9,
+            NULL:0, EINS:1, ZWEI:2, DREI:3, VIER:4, FUENF:5, 'FÜNF':5, SECHS:6, SIEBEN:7, ACHT:8, NEUN:9,
             TEN:10, ELEVEN:11, TWELVE:12, THIRTEEN:13, FOURTEEN:14, FIFTEEN:15,
             SIXTEEN:16, SEVENTEEN:17, EIGHTEEN:18, NINETEEN:19, TWENTY:20,
             THIRTY:30, FORTY:40, FIFTY:50, SIXTY:60, SEVENTY:70, EIGHTY:80,
@@ -4098,8 +4099,8 @@ THE SOFTWARE.
     function showVersion() {
         console.log("Version clicked");
         openAbout(
-            "Console v1.1.1",
-            "Console v1.1.1\n\n" +
+            "Console v1.1.2",
+            "Console v1.1.2\n\n" +
             "Console is a companion display for Talko / Kraftor / Emy.\n" +
             "It receives text over Serial or MIDI information and displays it in real time,\n" +
             "driven by the speech / text stream coming from those tools.\n\n" +

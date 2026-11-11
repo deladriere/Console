@@ -23,6 +23,11 @@ It can also use your **audio input** as a live source for visual effects and ani
 
 ## Run it
 
+**[Open Polaxis Console online](https://deladriere.github.io/Console/)**
+
+The site root opens `Console.html` automatically through `index.html`.
+The downloadable `Console.html` remains the complete application.
+
 ### Browser requirements
 
 - **Serial** requires a browser that supports **Web Serial** (typically Chromium-based browsers like Chrome / Edge).
@@ -32,7 +37,7 @@ It can also use your **audio input** as a live source for visual effects and ani
 
 - You can open `Console.html` directly (double-click).
 - If you have trouble running it locally (or Serial does not work), use the hosted version:
-  - `https://deladriere.github.io/Console/Console.html`
+  - [Open Polaxis Console](https://deladriere.github.io/Console/)
 
 
 ## Connect Serial

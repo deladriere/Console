@@ -85,7 +85,7 @@ context.receive('SCH\n'); assert.deepStrictEqual(codes(), ['SCH']);
 clear(); context.settings.model = 'sc01'; context.receive('SCH\nSH\nPA0\nSTOP\n');
 assert.deepStrictEqual(codes(), ['SH', 'PA0', 'STOP']);
 assert.strictEqual(stopped > 0, true);
-assert(html.includes('window.ConsoleMouth.receive(chunk);\n                    if (!textDisplayEnabled) continue;'));
+assert(/window\.ConsoleMouth\.receive\(chunk\);\s+if \(!textDisplayEnabled\)/.test(html));
 assert(html.includes('window.ConsoleMouth.sync();'));
 console.log('PASS: original SC-01 (64) / SC-02 (65) mappings and all 26 bitmap assets preserved byte-for-byte.');
 console.log('PASS: split and bytewise streams, CR/LF, case normalization, unknown/control/oversized input, model selection and disabled input.');

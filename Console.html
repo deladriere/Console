@@ -956,7 +956,7 @@ body.head-fullscreen #chimeraCanvas { width: min(calc(96dvh * var(--head-size)),
             <button class="submenu-item" onclick="showHead3DSources()"><span>3D Head sources</span></button>
             <button class="submenu-item" onclick="showChimeraSources()"><span>Chimera sources / licence</span></button>
             <button class="submenu-item" onclick="showVersion()">
-                <span>Version 1.1</span>
+                <span>Version 1.1.1</span>
             </button>
             <button class="submenu-item" onclick="window.open('https://github.com/deladriere/Console', '_blank', 'noopener')">
                 <span>Source code</span>
@@ -2259,6 +2259,7 @@ THE SOFTWARE.
     let bytesReceived = 0;
     let currentLine = '';
     let captionBuffer = '';
+    const numberInput = createNumberInput(value => setBigText(value));
     const BAUD_RATE = 115200;
 
     // Scope state
@@ -3544,6 +3545,7 @@ THE SOFTWARE.
         } else {
             switchEl.classList.remove('active');
             stopWordSlicing();
+            numberInput.reset();
             if (backdropEl) backdropEl.style.display = 'none';
             if (vfxBoxEl) vfxBoxEl.style.display = 'none';
             if (bigEl) bigEl.style.display = 'none';
@@ -3582,6 +3584,7 @@ THE SOFTWARE.
         selectItemInGroup(button, 'textInput');
         currentTextInputMode = mode;
         currentLine = captionBuffer = '';
+        numberInput.reset();
         localStorage.setItem('textInputMode', currentTextInputMode);
 
         // Either/or ticks: if a Numbers mode is selected, clear Words ticks
@@ -3604,6 +3607,7 @@ THE SOFTWARE.
     function setWordAnimMode(mode, button) {
         stopWordSlicing();
         currentLine = captionBuffer = '';
+        numberInput.reset();
         wordAnimMode = (mode === 'zoom') ? 'zoom' : 'pulse';
         localStorage.setItem('wordAnimMode', wordAnimMode);
 
@@ -3732,6 +3736,7 @@ THE SOFTWARE.
             stopWordSlicing();
             latestCaption = '';
             currentLine = captionBuffer = '';
+            numberInput.reset();
             window.ConsoleMouth.reset(undefined, true);
             window.ConsoleBit.reset();
             bytesReceived = 0;
@@ -3771,6 +3776,7 @@ THE SOFTWARE.
         latestCaption = '';
         serialConnected = false;
         currentLine = captionBuffer = '';
+        numberInput.reset();
         window.ConsoleMouth.reset('Serial disconnected', true);
         window.ConsoleBit.reset();
 
@@ -3805,12 +3811,54 @@ THE SOFTWARE.
         console.log('Serial disconnected');
     }
 
+    function createNumberInput(onNumber) {
+        const words = {
+            ZERO:0, ONE:1, TWO:2, THREE:3, FOUR:4, FIVE:5, SIX:6, SEVEN:7, EIGHT:8, NINE:9,
+            TEN:10, ELEVEN:11, TWELVE:12, THIRTEEN:13, FOURTEEN:14, FIFTEEN:15,
+            SIXTEEN:16, SEVENTEEN:17, EIGHTEEN:18, NINETEEN:19, TWENTY:20,
+            THIRTY:30, FORTY:40, FIFTY:50, SIXTY:60, SEVENTY:70, EIGHTY:80,
+            NINETY:90, HUNDRED:100, THOUSAND:1000
+        };
+        let line = '', dropping = false;
+        function consume(text) {
+            let value = String(text).trim();
+            // Robotrax's item is a one-based menu position: SEVEN is item 8.
+            // Only the spoken label is content; other diagnostic numbers are metadata.
+            const play = value.match(/^PLAY\b[^\r\n]*\blabel="([^"\r\n]*)"(?:\s|$)/i);
+            if (play) value = play[1].trim();
+            const name = value.toUpperCase();
+            if (Object.prototype.hasOwnProperty.call(words, name)) {
+                onNumber(String(words[name]));
+            } else if (/^[-+]?\d+(?:\.\d+)?$/.test(value) && Number.isFinite(Number(value))) {
+                onNumber(value);
+            }
+            // Phoneme suffixes (EH1, PA0) and RESULT counters must never change a number.
+        }
+        return {
+            line: consume,
+            receive(chunk) {
+                for (const char of String(chunk)) {
+                    if (char === '\r' || char === '\n') {
+                        if (!dropping && line.trim()) consume(line);
+                        line = ''; dropping = false;
+                    } else if (!dropping) {
+                        if (line.length >= 512 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(char)) {
+                            line = ''; dropping = true;
+                        } else line += char;
+                    }
+                }
+            },
+            reset() { line = ''; dropping = false; }
+        };
+    }
+
     async function readSerialLoop() {
         while (serialConnected && reader) {
             try {
                 const { value, done } = await reader.read();
                 if (done) {
                     stopWordSlicing();
+                    numberInput.reset();
                     window.ConsoleMouth.reset('Serial stream ended', true);
                     window.ConsoleBit.reset();
                     console.log('Reader done');
@@ -3825,7 +3873,7 @@ THE SOFTWARE.
                     window.ConsoleBit.receive(rawChunk);
                     const chunk = receiveCaptionChunk(rawChunk);
                     window.ConsoleMouth.receive(chunk);
-                    if (!textDisplayEnabled) continue;
+                    if (!textDisplayEnabled) { numberInput.reset(); continue; }
                     if (['sentence', 'slice'].includes(currentTextInputMode) || !chunk) continue;
                     if (currentTextInputMode === 'word') {
                         // Word mode: split on spaces/tabs/newlines, but keep trailing partial word
@@ -3837,23 +3885,12 @@ THE SOFTWARE.
                             if (w) processSerialLine(w);
                         });
                     } else {
-                        // Number/row/pulse modes: split on newlines, keep trailing partial line
-                        const combined = currentLine + chunk;
-                        const lines = combined.split(/[\r\n]+/);
-                        currentLine = lines.pop() || '';
-                        lines.forEach((ln) => {
-                            if (ln) processSerialLine(ln);
-                        });
-
-                        // Responsive number extraction from combined chunk+partial
-                        const numMatches = combined.match(/[-+]?\d+(?:\.\d+)?/g);
-                        if (numMatches && numMatches.length) {
-                            setBigText(numMatches[numMatches.length - 1]);
-                        }
+                        numberInput.receive(chunk);
                     }
                 }
             } catch (e) {
                 stopWordSlicing();
+                numberInput.reset();
                 if (serialConnected) {
                     window.ConsoleMouth.reset('Serial read error', true);
                     console.error('Read error:', e);
@@ -3952,11 +3989,7 @@ THE SOFTWARE.
             return;
         }
 
-        const isNumber = /^[-+]?\d+(?:\.\d+)?$/.test(trimmed);
-        if (isNumber) {
-            setBigText(trimmed);
-            return;
-        }
+        numberInput.line(trimmed);
     }
 
     // Handle serial disconnect event
@@ -3965,6 +3998,7 @@ THE SOFTWARE.
             stopWordSlicing();
             latestCaption = '';
             window.ConsoleMouth.reset('Serial device disconnected', true);
+            numberInput.reset();
             console.log('Serial device disconnected');
             serialConnected = false;
 
@@ -4064,8 +4098,8 @@ THE SOFTWARE.
     function showVersion() {
         console.log("Version clicked");
         openAbout(
-            "Console v1.1",
-            "Console v1.1\n\n" +
+            "Console v1.1.1",
+            "Console v1.1.1\n\n" +
             "Console is a companion display for Talko / Kraftor / Emy.\n" +
             "It receives text over Serial or MIDI information and displays it in real time,\n" +
             "driven by the speech / text stream coming from those tools.\n\n" +

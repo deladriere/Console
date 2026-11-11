@@ -1,0 +1,80 @@
+PLAY bank=4 item=1 label="ZERO" mode=speech
+Z
+AY
+I1
+R
+O1
+U1
+STOP
+STOP
+RESULT label="ZERO" status=done blocks=202 avg_us=1891 peak_us=2013 budget_us=3200 late_blocks=0 underrun_events=0 underrun_samples=0 saturation=0 clipped=0
+PLAY bank=4 item=2 label="ONE" mode=speech
+W
+UH1
+UH2
+N
+STOP
+STOP
+RESULT label="ONE" status=done blocks=131 avg_us=1903 peak_us=1969 budget_us=3200 late_blocks=0 underrun_events=0 underrun_samples=0 saturation=0 clipped=0
+PLAY bank=4 item=3 label="TWO" mode=speech
+T
+U
+STOP
+STOP
+RESULT label="TWO" status=done blocks=104 avg_us=1870 peak_us=1957 budget_us=3200 late_blocks=0 underrun_events=0 underrun_samples=0 saturation=0 clipped=0
+PLAY bank=4 item=4 label="THREE" mode=speech
+TH
+R
+E1
+Y
+STOP
+STOP
+RESULT label="THREE" status=done blocks=146 avg_us=1898 peak_us=1969 budget_us=3200 late_blocks=0 underrun_events=0 underrun_samples=0 saturation=0 clipped=0
+PLAY bank=4 item=5 label="FOUR" mode=speech
+F
+O
+R
+STOP
+STOP
+RESULT label="FOUR" status=done blocks=143 avg_us=1931 peak_us=2079 budget_us=3200 late_blocks=0 underrun_events=0 underrun_samples=0 saturation=0 clipped=0
+PLAY bank=4 item=6 label="FIVE" mode=speech
+F
+AH1
+Y
+V
+STOP
+STOP
+RESULT label="FIVE" status=done blocks=158 avg_us=1990 peak_us=2158 budget_us=3200 late_blocks=0 underrun_events=0 underrun_samples=0 saturation=0 clipped=0
+PLAY bank=4 item=7 label="SIX" mode=speech
+S
+I
+K
+S
+STOP
+STOP
+RESULT label="SIX" status=done blocks=165 avg_us=1928 peak_us=2085 budget_us=3200 late_blocks=0 underrun_events=0 underrun_samples=0 saturation=0 clipped=0
+PLAY bank=4 item=8 label="SEVEN" mode=speech
+S
+EH
+V
+EH
+N
+STOP
+STOP
+RESULT label="SEVEN" status=done blocks=217 avg_us=1925 peak_us=2137 budget_us=3200 late_blocks=0 underrun_events=0 underrun_samples=0 saturation=0 clipped=0
+PLAY bank=4 item=9 label="EIGHT" mode=speech
+A
+AY
+Y
+T
+STOP
+STOP
+RESULT label="EIGHT" status=done blocks=158 avg_us=1887 peak_us=1970 budget_us=3200 late_blocks=0 underrun_events=0 underrun_samples=0 saturation=0 clipped=0
+PLAY bank=4 item=10 label="NINE" mode=speech
+N
+AH1
+Y
+N
+STOP
+STOP
+RESULT label="NINE" status=done blocks=154 avg_us=1915 peak_us=2007 budget_us=3200 late_blocks=0 underrun_events=0 underrun_samples=0 saturation=0 clipped=0

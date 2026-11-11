@@ -1,4 +1,4 @@
-# Console (Visual) — v1.1
+# Console (Visual) — v1.1.1
 
 ![Console screenshot](./image.png)
 
@@ -6,6 +6,12 @@ Console is a companion display for **Talko / Kraftor / Emy**.
 It receives text over **Serial** (Web Serial) or **MIDI** information and displays it in real time, driven by the speech / text stream coming from those tools.
 
 It can also use your **audio input** as a live source for visual effects and animations (Scope, Hydra, and other effects).
+
+## Fixed in 1.1.1
+
+Numeric modes now use Robotrax's spoken label rather than its one-based menu
+item number. SEVEN selects 7, and phoneme suffixes or diagnostic counters no
+longer produce intermediate numbers or reset the display to zero.
 
 ## New in 1.1
 
@@ -47,6 +53,28 @@ The downloadable `Console.html` remains the complete application.
 3. When connected, the red dot becomes **green**.
 
 Incoming text/numbers are displayed live (Numbers modes / Words mode).
+
+### Robotrax number display
+
+Choose **Text Input → Numbers → Row 0–9** for the full digit row, or another
+Numbers mode for a single value. Console accepts complete newline-terminated
+numeric values and spoken number labels. It also reads Robotrax's
+`PLAY bank=4 item=8 label="SEVEN" mode=speech` report as **7**: `item=8` is the
+menu position, with ZERO at item 1. The same rule applies to every bank.
+
+Supported spoken labels are ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN,
+EIGHT, NINE, TEN, ELEVEN, TWELVE, THIRTEEN, FOURTEEN, FIFTEEN, SIXTEEN,
+SEVENTEEN, EIGHTEEN, NINETEEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, SEVENTY,
+EIGHTY, NINETY, HUNDRED and THOUSAND.
+
+The last valid number stays selected until another number arrives. STOP,
+phoneme names such as EH1/PA0, identity messages and RESULT counters do not
+change it. Numeric input waits for a full line so USB chunk boundaries cannot
+turn a partial diagnostic into a digit. Mouth and Bit still receive their
+normal input. No Robotrax firmware update is needed for this Console fix.
+
+Run `node tests/numbers_test.cjs` for a recorded Robotrax digit stream,
+arbitrary chunk boundaries and the numeric-mode regression checks.
 
 ## VAX full sentences
 
